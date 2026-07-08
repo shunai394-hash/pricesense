@@ -1,5 +1,6 @@
 import { Calculator } from "@/components/Calculator";
 import { Features } from "@/components/Features";
+import { JOB_CATEGORY_COUNT } from "@/data/jobCategories";
 
 export default function Home() {
   return (
@@ -52,8 +53,8 @@ export default function Home() {
           <div className="mx-auto max-w-6xl">
             <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
               <div className="max-w-xl">
-                <p className="animate-fade-up text-xs font-medium uppercase tracking-[0.25em] text-accent">
-                  Market Rate Intelligence
+                <p className="animate-fade-up text-xs font-medium tracking-widest text-accent">
+                  フリーランス単価診断
                 </p>
                 <h1 className="animate-fade-up-delay-1 mt-4 font-display text-4xl font-semibold leading-[1.2] tracking-tight text-foreground sm:text-5xl lg:text-[3.25rem]">
                   あなたの単価、
@@ -65,26 +66,35 @@ export default function Home() {
                 <p className="animate-fade-up-delay-2 mt-6 text-base leading-relaxed text-muted sm:text-lg">
                   職種と単価を入力するだけ。
                   <br className="hidden sm:block" />
-                  市場との比較を無料診断。
+                  市場比較から値上げ交渉文の生成まで、ワンストップで完結。
                 </p>
-                <div className="animate-fade-up-delay-3 mt-8 flex flex-wrap items-center gap-6">
-                  <div className="flex items-center gap-2">
-                    <div className="flex -space-x-2">
-                      {[...Array(4)].map((_, i) => (
-                        <div
-                          key={i}
-                          className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-surface-elevated text-xs text-muted"
-                        >
-                          {["田", "佐", "鈴", "山"][i]}
-                        </div>
-                      ))}
-                    </div>
-                    <span className="text-sm text-muted">
-                      <span className="font-medium text-foreground">2,400+</span>{" "}
-                      人が診断済み
-                    </span>
-                  </div>
-                </div>
+                <ul className="animate-fade-up-delay-3 mt-8 space-y-3">
+                  {[
+                    "登録不要・30秒で診断完了",
+                    `${JOB_CATEGORY_COUNT}職種の市場相場と即時比較`,
+                    "目標単価を設定して交渉文を自動生成",
+                  ].map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-start gap-2.5 text-sm text-muted"
+                    >
+                      <svg
+                        className="mt-0.5 h-4 w-4 shrink-0 text-accent"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M4.5 12.75l6 6 9-13.5"
+                        />
+                      </svg>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
 
               <div id="diagnosis" className="animate-fade-up-delay-2 scroll-mt-24">
@@ -107,8 +117,8 @@ export default function Home() {
               データで決める時代。
             </h2>
             <p className="mx-auto mt-4 max-w-lg text-muted">
-              感覚ではなく、市場データに基づいた単価設定で、
-              あなたのスキルに見合った報酬を実現しましょう。
+              感覚ではなく、市場データに基づいた単価設定。
+              診断結果をもとに、値上げ交渉文まで自動で作成します。
             </p>
             <a
               href="#diagnosis"

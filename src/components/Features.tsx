@@ -1,5 +1,29 @@
+import { JOB_CATEGORY_COUNT } from "@/data/jobCategories";
+
 const features = [
   {
+    highlighted: true,
+    icon: (
+      <svg
+        className="h-6 w-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={1.5}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+        />
+      </svg>
+    ),
+    title: "交渉文を自動生成",
+    description:
+      "診断結果と目標単価から、職種別の交渉文を自動作成。PDF保存、件名・本文の個別コピー、編集、交渉ヒント付き。",
+  },
+  {
+    highlighted: false,
     icon: (
       <svg
         className="h-6 w-6"
@@ -19,6 +43,7 @@ const features = [
     description: "入力と同時に市場データと比較。待ち時間ゼロ。",
   },
   {
+    highlighted: false,
     icon: (
       <svg
         className="h-6 w-6"
@@ -34,10 +59,12 @@ const features = [
         />
       </svg>
     ),
-    title: "信頼できる相場データ",
-    description: "8職種の最新フリーランス市場相場を参照。",
+    title: `${JOB_CATEGORY_COUNT}職種の相場データ`,
+    description:
+      "IT・デザイン・AI・士業など100職種以上の日単価（最低・平均・上位25%・上位10%）を参照。算出基準と更新日を明示。",
   },
   {
+    highlighted: false,
     icon: (
       <svg
         className="h-6 w-6"
@@ -54,7 +81,8 @@ const features = [
       </svg>
     ),
     title: "年間インパクト可視化",
-    description: "日単価の差が年間でいくらになるか、一目で把握。",
+    description:
+      "市場との差額・改定後の年間増収をリアルタイム表示。値上げの根拠が数字で伝わる。",
   },
 ];
 
@@ -63,21 +91,39 @@ export function Features() {
     <section className="relative px-6 py-20 sm:py-28">
       <div className="mx-auto max-w-6xl">
         <div className="mb-14 text-center">
-          <p className="text-xs font-medium uppercase tracking-[0.25em] text-accent">
-            Why PriceSense
+          <p className="text-xs font-medium tracking-widest text-accent">
+            PriceSenseの特徴
           </p>
           <h2 className="mt-3 font-display text-3xl font-semibold text-foreground sm:text-4xl">
-            プロのための単価インテリジェンス
+            診断から交渉まで、ひとつで完結
           </h2>
+          <p className="mx-auto mt-4 max-w-xl text-sm text-muted">
+            相場を調べて終わりではなく、次のアクション——値上げ交渉——までサポートします。
+          </p>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="group rounded-2xl border border-border bg-surface/50 p-8 transition-all hover:border-accent/20 hover:bg-surface"
+              className={`group rounded-2xl border p-8 transition-all ${
+                feature.highlighted
+                  ? "border-accent/30 bg-accent/5 hover:border-accent/40 hover:bg-accent/10"
+                  : "border-border bg-surface/50 hover:border-accent/20 hover:bg-surface"
+              }`}
             >
-              <div className="mb-5 inline-flex rounded-xl border border-accent/20 bg-accent/5 p-3 text-accent transition-colors group-hover:bg-accent/10">
+              {feature.highlighted && (
+                <span className="mb-4 inline-flex rounded-full border border-accent/30 bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent">
+                  差別化ポイント
+                </span>
+              )}
+              <div
+                className={`mb-5 inline-flex rounded-xl border p-3 transition-colors ${
+                  feature.highlighted
+                    ? "border-accent/30 bg-accent/10 text-accent group-hover:bg-accent/15"
+                    : "border-accent/20 bg-accent/5 text-accent group-hover:bg-accent/10"
+                }`}
+              >
                 {feature.icon}
               </div>
               <h3 className="mb-2 text-lg font-semibold text-foreground">
