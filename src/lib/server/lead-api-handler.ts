@@ -15,17 +15,36 @@ export async function handleLeadRegistrationPost(
     );
   }
 
-  try {
-    const body = parseLeadApiRequestBody(await request.json());
-    const { record, pdfAttachment, sendPdfEmailOnly } = body;
+  let body: ReturnType<typeof parseLeadApiRequestBody>;
 
-    if (!sendPdfEmailOnly) {
-      await insertLeadRecord(record);
-    } else if (!pdfAttachment) {
-      throw new Error("pdfAttachment is required for sendPdfEmailOnly");
+  try {
+    body = parseLeadApiRequestBody(await request.json());
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Invalid request body";
+
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+
+  const { record, pdfAttachment, sendPdfEmailOnly } = body;
+
+  try {
+    let deliveryMode: LeadDeliveryMode = "local_download";
+
+    if (sendPdfEmailOnly) {
+      if (
+        record.leadSource === "pdf_export" &&
+        pdfAttachment &&
+        isResendConfigured()
+      ) {
+        await sendDiagnosisPdfEmail(record, pdfAttachment);
+        deliveryMode = "email";
+      }
+
+      return NextResponse.json({ ok: true, deliveryMode });
     }
 
-    let deliveryMode: LeadDeliveryMode = "local_download";
+    await insertLeadRecord(record);
 
     if (
       record.leadSource === "pdf_export" &&
@@ -41,6 +60,6 @@ export async function handleLeadRegistrationPost(
     const message =
       error instanceof Error ? error.message : "Failed to register lead";
 
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

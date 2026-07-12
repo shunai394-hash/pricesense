@@ -5,6 +5,7 @@ import type {
   PdfAttachmentPayload,
 } from "@/lib/leads/types";
 import { logLeadPipeline } from "@/lib/leads/debug";
+import { serializeLeadRecordForApi } from "@/lib/leads/serialize";
 
 /** Avoid /api/leads — commonly blocked by privacy/ad blocklists. */
 const LEAD_API_PATH = "/api/save-report";
@@ -134,8 +135,10 @@ export async function submitLeadToApi(
   options?: SubmitLeadOptions
 ): Promise<LeadApiResponse> {
   const requestBody: LeadApiRequest = {
-    record: payload,
-    ...(pdfAttachment ? { pdfAttachment } : {}),
+    record: serializeLeadRecordForApi(payload),
+    ...(pdfAttachment?.filename && pdfAttachment.contentBase64
+      ? { pdfAttachment }
+      : {}),
     ...(options?.sendPdfEmailOnly ? { sendPdfEmailOnly: true } : {}),
   };
 

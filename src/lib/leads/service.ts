@@ -11,6 +11,7 @@ import type {
   PdfAttachmentPayload,
 } from "@/lib/leads/types";
 import { isValidEmail } from "@/lib/leadCapture";
+import { serializeLeadRecordForApi } from "@/lib/leads/serialize";
 
 export function buildLeadRecord(
   email: string,
@@ -31,19 +32,7 @@ export function buildLeadRecord(
 }
 
 function stripUndefinedFromLeadRecord(record: LeadRecord): LeadRecord {
-  return {
-    leadSource: record.leadSource,
-    email: record.email,
-    createdAt: record.createdAt,
-    ...(record.categoryId !== undefined ? { categoryId: record.categoryId } : {}),
-    ...(record.categoryName !== undefined ? { categoryName: record.categoryName } : {}),
-    ...(record.userRate !== undefined ? { userRate: record.userRate } : {}),
-    ...(record.marketRate !== undefined ? { marketRate: record.marketRate } : {}),
-    ...(record.diagnosisLevel !== undefined
-      ? { diagnosisLevel: record.diagnosisLevel }
-      : {}),
-    ...(record.targetRate !== undefined ? { targetRate: record.targetRate } : {}),
-  };
+  return serializeLeadRecordForApi(record);
 }
 
 async function persistLead(
@@ -139,7 +128,7 @@ export async function registerLeadAndExportPdf(
   if (params.getPdfAttachment && persisted.submittedToServer) {
     try {
       const pdfAttachment = await params.getPdfAttachment();
-      if (pdfAttachment) {
+      if (pdfAttachment?.filename && pdfAttachment.contentBase64) {
         logLeadPipeline("registerLeadAndExportPdf:sendPdfEmail");
         const emailResult = await submitLeadPdfEmail(
           stripUndefinedFromLeadRecord(persisted.record),
