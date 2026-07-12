@@ -4,17 +4,25 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { isValidEmail, PDF_LEAD_BENEFITS } from "@/lib/leadCapture";
 import { logLeadPipeline } from "@/lib/leads/debug";
-import { getCachedLeadEmail, type LeadRegistrationResult } from "@/lib/leads";
+import {
+  getCachedLeadEmail,
+  registerLeadAndExportPdf,
+  type LeadDiagnosisContext,
+  type LeadRegistrationResult,
+  type PdfAttachmentPayload,
+} from "@/lib/leads";
 import type { PdfCompleteInsight } from "@/lib/calculator";
 
 interface PdfEmailCaptureModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (email: string) => Promise<LeadRegistrationResult>;
-  isSubmitting: boolean;
   onOpenNegotiation: () => void;
   onViewPremiumReport: () => void;
   insight: PdfCompleteInsight | null;
+  leadContext: LeadDiagnosisContext;
+  exportPdf: () => Promise<void>;
+  getPdfAttachment?: () => Promise<PdfAttachmentPayload | null>;
+  onExportingChange?: (exporting: boolean) => void;
 }
 
 function getDeliveryMessage(result: LeadRegistrationResult): string {
@@ -28,25 +36,31 @@ function getDeliveryMessage(result: LeadRegistrationResult): string {
 export function PdfEmailCaptureModal({
   isOpen,
   onClose,
-  onSubmit,
-  isSubmitting,
   onOpenNegotiation,
   onViewPremiumReport,
   insight,
+  leadContext,
+  exportPdf,
+  getPdfAttachment,
+  onExportingChange,
 }: PdfEmailCaptureModalProps) {
   const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [registrationResult, setRegistrationResult] =
     useState<LeadRegistrationResult | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    logLeadPipeline("PdfEmailCaptureModal:mounted");
   }, []);
 
   useEffect(() => {
     if (!isOpen) return;
+
+    logLeadPipeline("PdfEmailCaptureModal:open");
     setEmail(getCachedLeadEmail());
     setError("");
     setIsComplete(false);
@@ -83,8 +97,47 @@ export function PdfEmailCaptureModal({
     };
   }, [isOpen, isSubmitting, onClose]);
 
+  const submitEmail = async (trimmed: string) => {
+    logLeadPipeline("PdfEmailCaptureModal:submitEmail", { email: trimmed });
+
+    setIsSubmitting(true);
+    onExportingChange?.(true);
+
+    try {
+      const result = await registerLeadAndExportPdf({
+        email: trimmed,
+        context: leadContext,
+        exportPdf,
+        getPdfAttachment,
+      });
+
+      logLeadPipeline("PdfEmailCaptureModal:complete", {
+        submittedToServer: result.submittedToServer,
+        deliveryMode: result.deliveryMode,
+      });
+
+      setRegistrationResult(result);
+      setIsComplete(true);
+    } catch (submitError) {
+      logLeadPipeline("PdfEmailCaptureModal:error", {
+        message:
+          submitError instanceof Error ? submitError.message : "unknown",
+      });
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "PDFの保存に失敗しました。時間をおいて再度お試しください。"
+      );
+    } finally {
+      setIsSubmitting(false);
+      onExportingChange?.(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    logLeadPipeline("PdfEmailCaptureModal:formSubmit");
+
     const trimmed = email.trim();
     if (!isValidEmail(trimmed)) {
       setError("有効なメールアドレスを入力してください");
@@ -92,28 +145,15 @@ export function PdfEmailCaptureModal({
     }
 
     setError("");
-    try {
-      logLeadPipeline("PdfEmailCaptureModal:onSubmit", { email: trimmed });
-      const result = await onSubmit(trimmed);
-      logLeadPipeline("PdfEmailCaptureModal:complete", {
-        submittedToServer: result.submittedToServer,
-        deliveryMode: result.deliveryMode,
-      });
-      setRegistrationResult(result);
-      setIsComplete(true);
-    } catch (submitError) {
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "PDFの保存に失敗しました。時間をおいて再度お試しください。"
-      );
-    }
+    await submitEmail(trimmed);
   };
 
   if (!isOpen || !mounted) return null;
 
   return createPortal(
     <div
+      data-ps-component="pdf-email-capture-modal"
+      data-ps-version="lead-pipeline-v2"
       className="fixed inset-0 z-[110] flex items-end justify-center overflow-hidden p-4 sm:items-center sm:p-6"
       role="dialog"
       aria-modal="true"
@@ -268,7 +308,11 @@ export function PdfEmailCaptureModal({
                 ))}
               </ul>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form
+                data-ps-form="pdf-lead-capture"
+                onSubmit={handleSubmit}
+                className="space-y-4"
+              >
                 <div>
                   <label
                     htmlFor="pdf-lead-email"
@@ -278,6 +322,7 @@ export function PdfEmailCaptureModal({
                   </label>
                   <input
                     id="pdf-lead-email"
+                    name="pdf-lead-email"
                     type="email"
                     inputMode="email"
                     autoComplete="email"
@@ -297,7 +342,11 @@ export function PdfEmailCaptureModal({
 
                 <button
                   type="submit"
+                  data-ps-action="pdf-lead-submit"
                   disabled={isSubmitting}
+                  onClick={() => {
+                    logLeadPipeline("PdfEmailCaptureModal:submitButtonClick");
+                  }}
                   className="w-full rounded-xl bg-accent px-5 py-3.5 text-sm font-semibold text-background transition-all hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isSubmitting ? "PDFを保存中..." : "登録してPDFを保存"}

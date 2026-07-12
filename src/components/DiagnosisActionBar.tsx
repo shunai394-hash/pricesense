@@ -1,6 +1,7 @@
 "use client";
 
 import { PDF_LEAD_BENEFITS } from "@/lib/leadCapture";
+import { logLeadPipeline } from "@/lib/leads/debug";
 
 interface DiagnosisActionBarProps {
   onRequestPdfByEmail: () => void;
@@ -54,7 +55,11 @@ export function DiagnosisActionBar({
         <button
           type="button"
           id="pdf-export-button"
-          onClick={onRequestPdfByEmail}
+          data-ps-action="open-pdf-email-modal"
+          onClick={() => {
+            logLeadPipeline("DiagnosisActionBar:pdfButtonClick");
+            onRequestPdfByEmail();
+          }}
           disabled={isDisabled || isPdfExporting}
           aria-busy={isPdfExporting}
           aria-label={

@@ -7,6 +7,7 @@ export type {
   LeadSource,
   LeadSubmissionPayload,
   LeadWaitlistResult,
+  PdfAttachmentPayload,
 } from "@/lib/leads/types";
 
 export {

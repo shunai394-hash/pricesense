@@ -36,8 +36,7 @@ import {
   type PdfExportData,
 } from "@/lib/pdfExport";
 import {
-  registerLeadAndExportPdf,
-  type LeadRegistrationResult,
+  type LeadDiagnosisContext,
 } from "@/lib/leads";
 import { logLeadPipeline } from "@/lib/leads/debug";
 import { ANALYTICS_EVENTS, trackEvent } from "@/lib/analytics";
@@ -91,6 +90,7 @@ export function Calculator() {
   );
 
   const openPdfModal = useCallback((source: string) => {
+    logLeadPipeline("Calculator:openPdfModal", { source });
     trackEvent(ANALYTICS_EVENTS.pdfExportClick, { source });
     setIsPdfEmailModalOpen(true);
   }, []);
@@ -283,7 +283,11 @@ export function Calculator() {
     return exportDiagnosisPdfAsBase64(data);
   }, [buildPdfExportData]);
 
-  const leadDiagnosisContext = useMemo(
+  useEffect(() => {
+    logLeadPipeline("Calculator:mounted", { version: "lead-pipeline-v2" });
+  }, []);
+
+  const leadDiagnosisContext = useMemo<LeadDiagnosisContext>(
     () => ({
       categoryId: category.id,
       categoryName: category.label,
@@ -300,24 +304,6 @@ export function Calculator() {
       diagnosis.level,
       effectiveTargetRate,
     ]
-  );
-
-  const handlePdfEmailSubmit = useCallback(
-    async (email: string): Promise<LeadRegistrationResult> => {
-      logLeadPipeline("Calculator:handlePdfEmailSubmit", { email });
-      setIsPdfExporting(true);
-      try {
-        return await registerLeadAndExportPdf({
-          email,
-          context: leadDiagnosisContext,
-          exportPdf: runPdfExport,
-          getPdfAttachment,
-        });
-      } finally {
-        setIsPdfExporting(false);
-      }
-    },
-    [runPdfExport, getPdfAttachment, leadDiagnosisContext]
   );
 
   return (
@@ -753,8 +739,10 @@ export function Calculator() {
       <PdfEmailCaptureModal
         isOpen={isPdfEmailModalOpen}
         onClose={() => setIsPdfEmailModalOpen(false)}
-        onSubmit={handlePdfEmailSubmit}
-        isSubmitting={isPdfExporting}
+        leadContext={leadDiagnosisContext}
+        exportPdf={runPdfExport}
+        getPdfAttachment={getPdfAttachment}
+        onExportingChange={setIsPdfExporting}
         onOpenNegotiation={handleOpenNegotiationAfterPdf}
         onViewPremiumReport={handleViewPremiumAfterPdf}
         insight={pdfCompleteInsight}

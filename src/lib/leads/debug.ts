@@ -4,5 +4,6 @@ export function logLeadPipeline(
   detail?: Record<string, unknown>
 ): void {
   if (typeof window === "undefined") return;
-  console.info(`[PriceSense:leads] ${step}`, detail ?? "");
+  // warn: visible even when Chrome console "Info" level is hidden
+  console.warn(`[PriceSense:leads] ${step}`, detail ?? "");
 }
