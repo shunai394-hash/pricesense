@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { LeadRecord } from "@/lib/leads/types";
-import { isSupabaseConfigured } from "@/lib/server/env";
+import { getSupabaseConfig } from "@/lib/server/env";
 
 export interface PremiumSubscriptionRow {
   email: string;
@@ -13,16 +13,25 @@ export interface PremiumSubscriptionRow {
 let adminClient: SupabaseClient | null = null;
 
 export function getSupabaseAdmin(): SupabaseClient {
-  if (!isSupabaseConfigured()) {
-    throw new Error("Supabase is not configured");
+  const config = getSupabaseConfig();
+  if (!config) {
+    throw new Error(
+      "Supabase is not configured: set valid SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"
+    );
   }
 
   if (!adminClient) {
-    adminClient = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { persistSession: false, autoRefreshToken: false } }
-    );
+    try {
+      adminClient = createClient(config.url, config.serviceRoleKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+    } catch (error) {
+      adminClient = null;
+      const message =
+        error instanceof Error ? error.message : "unknown createClient error";
+      console.error("[save-report] Supabase createClient failed:", message, error);
+      throw new Error(`Failed to create Supabase client: ${message}`);
+    }
   }
 
   return adminClient;
@@ -31,7 +40,7 @@ export function getSupabaseAdmin(): SupabaseClient {
 export async function insertLeadRecord(record: LeadRecord): Promise<void> {
   const supabase = getSupabaseAdmin();
 
-  const { error } = await supabase.from("leads").insert({
+  const row = {
     lead_source: record.leadSource,
     email: record.email.toLowerCase(),
     category_id: record.categoryId ?? null,
@@ -41,9 +50,18 @@ export async function insertLeadRecord(record: LeadRecord): Promise<void> {
     diagnosis_level: record.diagnosisLevel ?? null,
     target_rate: record.targetRate ?? null,
     created_at: record.createdAt,
-  });
+  };
+
+  const { error } = await supabase.from("leads").insert(row);
 
   if (error) {
+    console.error("[save-report] Supabase insert failed:", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+      email: row.email,
+    });
     throw new Error(`Failed to save lead: ${error.message}`);
   }
 }
