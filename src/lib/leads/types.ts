@@ -42,6 +42,8 @@ export interface LeadApiRequest {
 export interface LeadApiResponse {
   ok: boolean;
   deliveryMode: LeadDeliveryMode;
+  /** True when the server persisted the lead (POST /api/leads succeeded). */
+  submittedToServer: boolean;
   error?: string;
 }
 

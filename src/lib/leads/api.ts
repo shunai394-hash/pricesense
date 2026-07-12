@@ -2,10 +2,6 @@ import type { LeadApiRequest, LeadApiResponse, LeadRecord, PdfAttachmentPayload 
 
 const LEAD_API_PATH = "/api/leads";
 
-function isLeadApiEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_LEAD_API_ENABLED === "true";
-}
-
 async function parseApiErrorMessage(response: Response): Promise<string> {
   const fallback = "リード登録に失敗しました";
 
@@ -37,19 +33,12 @@ async function parseApiErrorMessage(response: Response): Promise<string> {
 }
 
 /**
- * Submits a lead to POST /api/leads when NEXT_PUBLIC_LEAD_API_ENABLED=true.
+ * Submits a lead to POST /api/leads. Server-side env (Supabase/Resend) controls persistence.
  */
 export async function submitLeadToApi(
   payload: LeadRecord,
   pdfAttachment?: PdfAttachmentPayload
 ): Promise<LeadApiResponse> {
-  if (!isLeadApiEnabled()) {
-    return {
-      ok: true,
-      deliveryMode: "local_download",
-    };
-  }
-
   const requestBody: LeadApiRequest = {
     record: payload,
     ...(pdfAttachment ? { pdfAttachment } : {}),
@@ -62,10 +51,19 @@ export async function submitLeadToApi(
       body: JSON.stringify(requestBody),
     });
 
+    if (response.status === 503) {
+      return {
+        ok: true,
+        deliveryMode: "local_download",
+        submittedToServer: false,
+      };
+    }
+
     if (!response.ok) {
       return {
         ok: false,
         deliveryMode: "local_download",
+        submittedToServer: false,
         error: await parseApiErrorMessage(response),
       };
     }
@@ -76,12 +74,14 @@ export async function submitLeadToApi(
 
     return {
       ok: true,
-      deliveryMode: data.deliveryMode ?? "email",
+      deliveryMode: data.deliveryMode ?? "local_download",
+      submittedToServer: true,
     };
   } catch {
     return {
       ok: false,
       deliveryMode: "local_download",
+      submittedToServer: false,
       error: "リード登録に失敗しました。時間をおいて再度お試しください。",
     };
   }

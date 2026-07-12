@@ -65,7 +65,6 @@ async function persistLead(
   const record = buildLeadRecord(trimmed, leadSource, context);
   cacheLeadRecord(record);
 
-  const apiEnabled = process.env.NEXT_PUBLIC_LEAD_API_ENABLED === "true";
   const apiResult = await submitLeadToApi(
     stripUndefinedFromLeadRecord(record),
     pdfAttachment
@@ -82,7 +81,7 @@ async function persistLead(
 
   return {
     record,
-    submittedToServer: apiEnabled && apiResult.ok,
+    submittedToServer: apiResult.submittedToServer,
     deliveryMode: apiResult.deliveryMode,
   };
 }
@@ -114,11 +113,9 @@ export async function registerLeadAndExportPdf(
   params: RegisterLeadForPdfParams
 ): Promise<LeadRegistrationResult> {
   const leadSource = params.source ?? "pdf_export";
-  const apiEnabled = process.env.NEXT_PUBLIC_LEAD_API_ENABLED === "true";
-  const pdfAttachment =
-    apiEnabled && params.getPdfAttachment
-      ? await params.getPdfAttachment()
-      : undefined;
+  const pdfAttachment = params.getPdfAttachment
+    ? await params.getPdfAttachment()
+    : undefined;
 
   const persisted = await persistLead(
     params.email,
