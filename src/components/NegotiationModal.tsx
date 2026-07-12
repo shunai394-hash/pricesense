@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { ANALYTICS_EVENTS, trackEvent } from "@/lib/analytics";
+import { logLeadPipeline } from "@/lib/leads/debug";
 import { formatYen } from "@/lib/calculator";
 import {
   splitNegotiationPreview,
@@ -392,7 +393,10 @@ export function NegotiationModal({
             {onRequestPdfByEmail && (
               <button
                 type="button"
-                onClick={onRequestPdfByEmail}
+                onClick={() => {
+                  logLeadPipeline("NegotiationModal:pdfButtonClick");
+                  onRequestPdfByEmail();
+                }}
                 disabled={isPdfExporting}
                 className="inline-flex items-center gap-2 rounded-xl border border-accent/40 bg-accent/10 px-5 py-3 text-sm font-semibold text-accent transition-colors hover:border-accent/60 hover:bg-accent/15 disabled:opacity-50"
               >

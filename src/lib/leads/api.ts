@@ -8,6 +8,24 @@ import { logLeadPipeline } from "@/lib/leads/debug";
 
 /** Avoid /api/leads — commonly blocked by privacy/ad blocklists. */
 const LEAD_API_PATH = "/api/save-report";
+const LEAD_API_TIMEOUT_MS = 15_000;
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(
+    () => controller.abort(),
+    LEAD_API_TIMEOUT_MS
+  );
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
 
 async function parseApiErrorMessage(response: Response): Promise<string> {
   const fallback = "リード登録に失敗しました";
@@ -54,7 +72,7 @@ async function postLeadRequest(
   });
 
   try {
-    const response = await fetch(LEAD_API_PATH, {
+    const response = await fetchWithTimeout(LEAD_API_PATH, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),

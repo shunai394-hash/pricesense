@@ -90,9 +90,14 @@ export function Calculator() {
   );
 
   const openPdfModal = useCallback((source: string) => {
-    logLeadPipeline("Calculator:openPdfModal", { source });
-    trackEvent(ANALYTICS_EVENTS.pdfExportClick, { source });
+    setIsPdfExporting(false);
     setIsPdfEmailModalOpen(true);
+    try {
+      logLeadPipeline("Calculator:openPdfModal", { source });
+      trackEvent(ANALYTICS_EVENTS.pdfExportClick, { source });
+    } catch {
+      // Never block modal open on analytics/logging failures.
+    }
   }, []);
 
   const openNegotiationModal = useCallback((source: string) => {
@@ -284,7 +289,7 @@ export function Calculator() {
   }, [buildPdfExportData]);
 
   useEffect(() => {
-    logLeadPipeline("Calculator:mounted", { version: "lead-pipeline-v2" });
+    logLeadPipeline("Calculator:mounted", { version: "lead-pipeline-v3" });
   }, []);
 
   const leadDiagnosisContext = useMemo<LeadDiagnosisContext>(

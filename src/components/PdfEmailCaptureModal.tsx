@@ -26,8 +26,16 @@ interface PdfEmailCaptureModalProps {
 }
 
 function getDeliveryMessage(result: LeadRegistrationResult): string {
+  if (!result.pdfDownloaded) {
+    return "メール登録は完了しました。PDFのダウンロードに失敗した場合は、再度お試しください。";
+  }
+
   if (result.deliveryMode === "email") {
     return "登録メールアドレスにPDFをお送りしました。";
+  }
+
+  if (!result.submittedToServer && result.apiError) {
+    return "レポートは端末にダウンロード済みです。サーバーへの登録は後ほど再試行されます。";
   }
 
   return "レポートはお使いの端末にダウンロード済みです。";
@@ -44,18 +52,12 @@ export function PdfEmailCaptureModal({
   getPdfAttachment,
   onExportingChange,
 }: PdfEmailCaptureModalProps) {
-  const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [registrationResult, setRegistrationResult] =
     useState<LeadRegistrationResult | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-    logLeadPipeline("PdfEmailCaptureModal:mounted");
-  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -65,7 +67,8 @@ export function PdfEmailCaptureModal({
     setError("");
     setIsComplete(false);
     setRegistrationResult(null);
-  }, [isOpen]);
+    onExportingChange?.(false);
+  }, [isOpen, onExportingChange]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -114,6 +117,7 @@ export function PdfEmailCaptureModal({
       logLeadPipeline("PdfEmailCaptureModal:complete", {
         submittedToServer: result.submittedToServer,
         deliveryMode: result.deliveryMode,
+        pdfDownloaded: result.pdfDownloaded,
       });
 
       setRegistrationResult(result);
@@ -148,13 +152,13 @@ export function PdfEmailCaptureModal({
     await submitEmail(trimmed);
   };
 
-  if (!isOpen || !mounted) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
   return createPortal(
     <div
       data-ps-component="pdf-email-capture-modal"
-      data-ps-version="lead-pipeline-v2"
-      className="fixed inset-0 z-[110] flex items-end justify-center overflow-hidden p-4 sm:items-center sm:p-6"
+      data-ps-version="lead-pipeline-v3"
+      className="fixed inset-0 z-[200] flex items-end justify-center overflow-hidden p-4 sm:items-center sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby={
@@ -195,7 +199,9 @@ export function PdfEmailCaptureModal({
                 id="pdf-email-complete-title"
                 className="mt-2 font-display text-xl font-semibold text-foreground"
               >
-                診断結果PDFを保存しました
+                {registrationResult.pdfDownloaded
+                  ? "診断結果PDFを保存しました"
+                  : "メール登録が完了しました"}
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-muted">
                 メールアドレスを登録しました。今後、単価改善に役立つ情報をお届けします。

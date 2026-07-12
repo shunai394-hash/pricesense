@@ -56,6 +56,7 @@ export interface LeadRegistrationResult {
   storedLocally: boolean;
   submittedToServer: boolean;
   record: LeadRecord;
+  apiError?: string;
 }
 
 export interface LeadWaitlistResult {

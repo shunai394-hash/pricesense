@@ -60,7 +60,7 @@ export function DiagnosisActionBar({
             logLeadPipeline("DiagnosisActionBar:pdfButtonClick");
             onRequestPdfByEmail();
           }}
-          disabled={isDisabled || isPdfExporting}
+          disabled={isDisabled}
           aria-busy={isPdfExporting}
           aria-label={
             isPdfExporting

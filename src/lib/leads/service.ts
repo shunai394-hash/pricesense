@@ -54,7 +54,7 @@ async function persistLead(
   record: LeadRecord;
   submittedToServer: boolean;
   deliveryMode: LeadRegistrationResult["deliveryMode"];
-  error?: string;
+  apiError?: string;
 }> {
   const trimmed = email.trim();
 
@@ -79,19 +79,11 @@ async function persistLead(
     error: apiResult.error,
   });
 
-  if (!apiResult.ok) {
-    return {
-      record,
-      submittedToServer: false,
-      deliveryMode: apiResult.deliveryMode,
-      error: apiResult.error,
-    };
-  }
-
   return {
     record,
     submittedToServer: apiResult.submittedToServer,
     deliveryMode: apiResult.deliveryMode,
+    ...(apiResult.error ? { apiError: apiResult.error } : {}),
   };
 }
 
@@ -125,50 +117,59 @@ export async function registerLeadAndExportPdf(
 
   logLeadPipeline("registerLeadAndExportPdf:start", { email: params.email });
 
-  // 1. Save lead first — do not block on heavy PDF generation.
   const persisted = await persistLead(
     params.email,
     leadSource,
     params.context
   );
 
-  if (persisted.error) {
-    throw new Error(persisted.error);
+  let deliveryMode = persisted.deliveryMode;
+  let pdfDownloaded = false;
+
+  try {
+    await params.exportPdf();
+    pdfDownloaded = true;
+    logLeadPipeline("registerLeadAndExportPdf:pdfDownloaded");
+  } catch (error) {
+    logLeadPipeline("registerLeadAndExportPdf:pdfExportFailed", {
+      message: error instanceof Error ? error.message : "unknown",
+    });
   }
 
-  // 2. Download PDF locally.
-  await params.exportPdf();
-  logLeadPipeline("registerLeadAndExportPdf:pdfDownloaded");
-
-  let deliveryMode = persisted.deliveryMode;
-
-  // 3. Email PDF in a follow-up request (no duplicate DB insert).
   if (params.getPdfAttachment && persisted.submittedToServer) {
-    const pdfAttachment = await params.getPdfAttachment();
-    if (pdfAttachment) {
-      logLeadPipeline("registerLeadAndExportPdf:sendPdfEmail");
-      const emailResult = await submitLeadPdfEmail(
-        stripUndefinedFromLeadRecord(persisted.record),
-        pdfAttachment
-      );
-      if (emailResult.ok && emailResult.deliveryMode === "email") {
-        deliveryMode = "email";
+    try {
+      const pdfAttachment = await params.getPdfAttachment();
+      if (pdfAttachment) {
+        logLeadPipeline("registerLeadAndExportPdf:sendPdfEmail");
+        const emailResult = await submitLeadPdfEmail(
+          stripUndefinedFromLeadRecord(persisted.record),
+          pdfAttachment
+        );
+        if (emailResult.ok && emailResult.deliveryMode === "email") {
+          deliveryMode = "email";
+        }
       }
+    } catch (error) {
+      logLeadPipeline("registerLeadAndExportPdf:emailFailed", {
+        message: error instanceof Error ? error.message : "unknown",
+      });
     }
   }
 
   const result: LeadRegistrationResult = {
     email: persisted.record.email,
     deliveryMode,
-    pdfDownloaded: true,
+    pdfDownloaded,
     storedLocally: true,
     submittedToServer: persisted.submittedToServer,
     record: persisted.record,
+    ...(persisted.apiError ? { apiError: persisted.apiError } : {}),
   };
 
   logLeadPipeline("registerLeadAndExportPdf:complete", {
     submittedToServer: result.submittedToServer,
     deliveryMode: result.deliveryMode,
+    pdfDownloaded: result.pdfDownloaded,
   });
 
   trackLeadRegistered(
@@ -195,8 +196,8 @@ export async function registerPremiumWaitlist(
     params.context
   );
 
-  if (persisted.error) {
-    throw new Error(persisted.error ?? "登録に失敗しました");
+  if (!persisted.submittedToServer && persisted.apiError) {
+    throw new Error(persisted.apiError);
   }
 
   const result: LeadWaitlistResult = {
