@@ -1,5 +1,6 @@
 import { ANALYTICS_EVENTS, trackEvent } from "@/lib/analytics";
-import { submitLeadToApi } from "@/lib/leads/api";
+import { logLeadPipeline } from "@/lib/leads/debug";
+import { submitLeadPdfEmail, submitLeadToApi } from "@/lib/leads/api";
 import { cacheLeadRecord } from "@/lib/leads/storage";
 import type {
   LeadDiagnosisContext,
@@ -48,8 +49,7 @@ function stripUndefinedFromLeadRecord(record: LeadRecord): LeadRecord {
 async function persistLead(
   email: string,
   leadSource: LeadSource,
-  context: LeadDiagnosisContext = {},
-  pdfAttachment?: PdfAttachmentPayload
+  context: LeadDiagnosisContext = {}
 ): Promise<{
   record: LeadRecord;
   submittedToServer: boolean;
@@ -65,10 +65,19 @@ async function persistLead(
   const record = buildLeadRecord(trimmed, leadSource, context);
   cacheLeadRecord(record);
 
-  const apiResult = await submitLeadToApi(
-    stripUndefinedFromLeadRecord(record),
-    pdfAttachment
-  );
+  logLeadPipeline("persistLead:beforeApi", {
+    email: trimmed,
+    leadSource,
+  });
+
+  const apiResult = await submitLeadToApi(stripUndefinedFromLeadRecord(record));
+
+  logLeadPipeline("persistLead:afterApi", {
+    ok: apiResult.ok,
+    submittedToServer: apiResult.submittedToServer,
+    deliveryMode: apiResult.deliveryMode,
+    error: apiResult.error,
+  });
 
   if (!apiResult.ok) {
     return {
@@ -113,31 +122,54 @@ export async function registerLeadAndExportPdf(
   params: RegisterLeadForPdfParams
 ): Promise<LeadRegistrationResult> {
   const leadSource = params.source ?? "pdf_export";
-  const pdfAttachment = params.getPdfAttachment
-    ? await params.getPdfAttachment()
-    : undefined;
 
+  logLeadPipeline("registerLeadAndExportPdf:start", { email: params.email });
+
+  // 1. Save lead first — do not block on heavy PDF generation.
   const persisted = await persistLead(
     params.email,
     leadSource,
-    params.context,
-    pdfAttachment ?? undefined
+    params.context
   );
 
   if (persisted.error) {
     throw new Error(persisted.error);
   }
 
+  // 2. Download PDF locally.
   await params.exportPdf();
+  logLeadPipeline("registerLeadAndExportPdf:pdfDownloaded");
+
+  let deliveryMode = persisted.deliveryMode;
+
+  // 3. Email PDF in a follow-up request (no duplicate DB insert).
+  if (params.getPdfAttachment && persisted.submittedToServer) {
+    const pdfAttachment = await params.getPdfAttachment();
+    if (pdfAttachment) {
+      logLeadPipeline("registerLeadAndExportPdf:sendPdfEmail");
+      const emailResult = await submitLeadPdfEmail(
+        stripUndefinedFromLeadRecord(persisted.record),
+        pdfAttachment
+      );
+      if (emailResult.ok && emailResult.deliveryMode === "email") {
+        deliveryMode = "email";
+      }
+    }
+  }
 
   const result: LeadRegistrationResult = {
     email: persisted.record.email,
-    deliveryMode: persisted.deliveryMode,
+    deliveryMode,
     pdfDownloaded: true,
     storedLocally: true,
     submittedToServer: persisted.submittedToServer,
     record: persisted.record,
   };
+
+  logLeadPipeline("registerLeadAndExportPdf:complete", {
+    submittedToServer: result.submittedToServer,
+    deliveryMode: result.deliveryMode,
+  });
 
   trackLeadRegistered(
     leadSource,

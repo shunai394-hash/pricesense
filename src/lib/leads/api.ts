@@ -1,6 +1,13 @@
-import type { LeadApiRequest, LeadApiResponse, LeadRecord, PdfAttachmentPayload } from "@/lib/leads/types";
+import type {
+  LeadApiRequest,
+  LeadApiResponse,
+  LeadRecord,
+  PdfAttachmentPayload,
+} from "@/lib/leads/types";
+import { logLeadPipeline } from "@/lib/leads/debug";
 
-const LEAD_API_PATH = "/api/leads";
+/** Avoid /api/leads — commonly blocked by privacy/ad blocklists. */
+const LEAD_API_PATH = "/api/save-report";
 
 async function parseApiErrorMessage(response: Response): Promise<string> {
   const fallback = "リード登録に失敗しました";
@@ -32,23 +39,31 @@ async function parseApiErrorMessage(response: Response): Promise<string> {
   return fallback;
 }
 
-/**
- * Submits a lead to POST /api/leads. Server-side env (Supabase/Resend) controls persistence.
- */
-export async function submitLeadToApi(
-  payload: LeadRecord,
-  pdfAttachment?: PdfAttachmentPayload
+interface SubmitLeadOptions {
+  sendPdfEmailOnly?: boolean;
+}
+
+async function postLeadRequest(
+  requestBody: LeadApiRequest
 ): Promise<LeadApiResponse> {
-  const requestBody: LeadApiRequest = {
-    record: payload,
-    ...(pdfAttachment ? { pdfAttachment } : {}),
-  };
+  logLeadPipeline("submitLeadToApi:fetch", {
+    path: LEAD_API_PATH,
+    sendPdfEmailOnly: requestBody.sendPdfEmailOnly ?? false,
+    hasPdf: Boolean(requestBody.pdfAttachment),
+    email: requestBody.record.email,
+  });
 
   try {
     const response = await fetch(LEAD_API_PATH, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),
+      cache: "no-store",
+    });
+
+    logLeadPipeline("submitLeadToApi:response", {
+      status: response.status,
+      ok: response.ok,
     });
 
     if (response.status === 503) {
@@ -75,9 +90,13 @@ export async function submitLeadToApi(
     return {
       ok: true,
       deliveryMode: data.deliveryMode ?? "local_download",
-      submittedToServer: true,
+      submittedToServer: !requestBody.sendPdfEmailOnly,
     };
-  } catch {
+  } catch (error) {
+    logLeadPipeline("submitLeadToApi:error", {
+      message: error instanceof Error ? error.message : "unknown",
+    });
+
     return {
       ok: false,
       deliveryMode: "local_download",
@@ -85,4 +104,30 @@ export async function submitLeadToApi(
       error: "リード登録に失敗しました。時間をおいて再度お試しください。",
     };
   }
+}
+
+/**
+ * Submits a lead to POST /api/save-report.
+ * Server-side env (Supabase/Resend) controls persistence.
+ */
+export async function submitLeadToApi(
+  payload: LeadRecord,
+  pdfAttachment?: PdfAttachmentPayload,
+  options?: SubmitLeadOptions
+): Promise<LeadApiResponse> {
+  const requestBody: LeadApiRequest = {
+    record: payload,
+    ...(pdfAttachment ? { pdfAttachment } : {}),
+    ...(options?.sendPdfEmailOnly ? { sendPdfEmailOnly: true } : {}),
+  };
+
+  return postLeadRequest(requestBody);
+}
+
+/** Sends the diagnosis PDF by email without inserting another lead row. */
+export async function submitLeadPdfEmail(
+  payload: LeadRecord,
+  pdfAttachment: PdfAttachmentPayload
+): Promise<LeadApiResponse> {
+  return submitLeadToApi(payload, pdfAttachment, { sendPdfEmailOnly: true });
 }

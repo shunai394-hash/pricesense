@@ -37,6 +37,8 @@ export interface PdfAttachmentPayload {
 export interface LeadApiRequest {
   record: LeadRecord;
   pdfAttachment?: PdfAttachmentPayload;
+  /** When true, skip DB insert and only send the PDF email (Resend). */
+  sendPdfEmailOnly?: boolean;
 }
 
 export interface LeadApiResponse {

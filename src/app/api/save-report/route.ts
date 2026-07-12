@@ -3,7 +3,6 @@ import { handleLeadRegistrationPost } from "@/lib/server/lead-api-handler";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-/** @deprecated Prefer POST /api/save-report (less likely blocked by ad blockers). */
 export async function POST(request: Request) {
   return handleLeadRegistrationPost(request);
 }

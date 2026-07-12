@@ -9,6 +9,7 @@ export interface LeadApiRequestBody {
     filename: string;
     contentBase64: string;
   };
+  sendPdfEmailOnly?: boolean;
 }
 
 export function parseLeadApiRequestBody(body: unknown): LeadApiRequestBody {

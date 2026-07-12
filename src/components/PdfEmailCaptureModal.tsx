@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { isValidEmail, PDF_LEAD_BENEFITS } from "@/lib/leadCapture";
+import { logLeadPipeline } from "@/lib/leads/debug";
 import { getCachedLeadEmail, type LeadRegistrationResult } from "@/lib/leads";
 import type { PdfCompleteInsight } from "@/lib/calculator";
 
@@ -92,7 +93,12 @@ export function PdfEmailCaptureModal({
 
     setError("");
     try {
+      logLeadPipeline("PdfEmailCaptureModal:onSubmit", { email: trimmed });
       const result = await onSubmit(trimmed);
+      logLeadPipeline("PdfEmailCaptureModal:complete", {
+        submittedToServer: result.submittedToServer,
+        deliveryMode: result.deliveryMode,
+      });
       setRegistrationResult(result);
       setIsComplete(true);
     } catch (submitError) {

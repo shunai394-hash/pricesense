@@ -39,6 +39,7 @@ import {
   registerLeadAndExportPdf,
   type LeadRegistrationResult,
 } from "@/lib/leads";
+import { logLeadPipeline } from "@/lib/leads/debug";
 import { ANALYTICS_EVENTS, trackEvent } from "@/lib/analytics";
 import { usePremiumStatus } from "@/hooks/usePremiumStatus";
 
@@ -303,6 +304,7 @@ export function Calculator() {
 
   const handlePdfEmailSubmit = useCallback(
     async (email: string): Promise<LeadRegistrationResult> => {
+      logLeadPipeline("Calculator:handlePdfEmailSubmit", { email });
       setIsPdfExporting(true);
       try {
         return await registerLeadAndExportPdf({
