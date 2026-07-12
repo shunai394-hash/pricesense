@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { getAppUrl, getStripeConfig, isStripeConfigured } from "@/lib/server/env";
+import {
+  getAppUrl,
+  getStripeConfig,
+  getStripeConfigDiagnostics,
+  isStripeConfigured,
+} from "@/lib/server/env";
 import { getStripe } from "@/lib/server/stripe";
 
 export const runtime = "nodejs";
@@ -10,7 +15,18 @@ interface CheckoutRequestBody {
 }
 
 export async function POST(request: Request) {
+  const diagnostics = getStripeConfigDiagnostics();
+  console.log("[stripe-checkout] POST /api/stripe/checkout reached", {
+    isStripeConfigured: isStripeConfigured(),
+    hasRawSecretKey: diagnostics.hasRawSecretKey,
+    hasRawPriceId: diagnostics.hasRawPriceId,
+    secretStartsWithSk: diagnostics.secretStartsWithSk,
+    priceStartsWithPrice: diagnostics.priceStartsWithPrice,
+    rejectReason: diagnostics.rejectReason,
+  });
+
   if (!isStripeConfigured()) {
+    console.error("[stripe-checkout] Stripe is not configured", diagnostics);
     return NextResponse.json(
       { error: "Stripe is not configured" },
       { status: 503 }
@@ -24,11 +40,21 @@ export async function POST(request: Request) {
     const stripeConfig = getStripeConfig();
 
     if (!stripeConfig) {
+      console.error(
+        "[stripe-checkout] getStripeConfig returned null after isStripeConfigured passed",
+        diagnostics
+      );
       return NextResponse.json(
         { error: "Stripe is not configured" },
         { status: 503 }
       );
     }
+
+    console.log("[stripe-checkout] Creating Stripe Checkout session", {
+      priceIdLength: stripeConfig.priceId.length,
+      hasEmail: Boolean(body.email),
+      source: body.source ?? "unknown",
+    });
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -62,6 +88,10 @@ export async function POST(request: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Checkout failed";
+
+    console.error("[stripe-checkout] Checkout session creation failed", {
+      message,
+    });
 
     return NextResponse.json({ error: message }, { status: 500 });
   }

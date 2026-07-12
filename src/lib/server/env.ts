@@ -3,8 +3,89 @@ export interface SupabaseConfig {
   serviceRoleKey: string;
 }
 
+/**
+ * Read env at runtime via bracket access so Next.js does not inline
+ * undefined at build time when vars are added after the last build.
+ */
+function readEnv(name: string): string | undefined {
+  return process.env[name];
+}
+
 function trimEnv(value: string | undefined): string {
-  return value?.trim() ?? "";
+  let v = value?.trim() ?? "";
+
+  if (v.charCodeAt(0) === 0xfeff) {
+    v = v.slice(1).trim();
+  }
+
+  if (
+    v.length >= 2 &&
+    ((v.startsWith('"') && v.endsWith('"')) ||
+      (v.startsWith("'") && v.endsWith("'")))
+  ) {
+    v = v.slice(1, -1).trim();
+  }
+
+  return v.replace(/\r$/, "");
+}
+
+export interface StripeConfigDiagnostics {
+  hasRawSecretKey: boolean;
+  hasRawPriceId: boolean;
+  secretKeyLength: number;
+  priceIdLength: number;
+  secretStartsWithSk: boolean;
+  priceStartsWithPrice: boolean;
+  rejectReason: string | null;
+}
+
+function buildStripeConfigDiagnostics(): StripeConfigDiagnostics {
+  const rawSecretKey = readEnv("STRIPE_SECRET_KEY");
+  const rawPriceId = readEnv("STRIPE_PRICE_ID");
+  const secretKey = trimEnv(rawSecretKey);
+  const priceId = trimEnv(rawPriceId);
+
+  let rejectReason: string | null = null;
+
+  if (!secretKey || !priceId) {
+    if (!secretKey && !priceId) {
+      rejectReason = "missing_both";
+    } else if (!secretKey) {
+      rejectReason = "missing_secret_key";
+    } else {
+      rejectReason = "missing_price_id";
+    }
+  } else if (!secretKey.startsWith("sk_")) {
+    rejectReason = "invalid_secret_key_prefix";
+  } else if (!priceId.startsWith("price_")) {
+    rejectReason = "invalid_price_id_prefix";
+  }
+
+  return {
+    hasRawSecretKey: rawSecretKey !== undefined && rawSecretKey !== "",
+    hasRawPriceId: rawPriceId !== undefined && rawPriceId !== "",
+    secretKeyLength: secretKey.length,
+    priceIdLength: priceId.length,
+    secretStartsWithSk: secretKey.startsWith("sk_"),
+    priceStartsWithPrice: priceId.startsWith("price_"),
+    rejectReason,
+  };
+}
+
+function logStripeConfigDiagnostics(context: string): StripeConfigDiagnostics {
+  const diagnostics = buildStripeConfigDiagnostics();
+
+  console.log(`[stripe-config] ${context}`, {
+    hasRawSecretKey: diagnostics.hasRawSecretKey,
+    hasRawPriceId: diagnostics.hasRawPriceId,
+    secretStartsWithSk: diagnostics.secretStartsWithSk,
+    priceStartsWithPrice: diagnostics.priceStartsWithPrice,
+    secretKeyLength: diagnostics.secretKeyLength,
+    priceIdLength: diagnostics.priceIdLength,
+    rejectReason: diagnostics.rejectReason,
+  });
+
+  return diagnostics;
 }
 
 /**
@@ -12,8 +93,8 @@ function trimEnv(value: string | undefined): string {
  * Trims whitespace (common when pasting into Vercel env UI).
  */
 export function getSupabaseConfig(): SupabaseConfig | null {
-  const url = trimEnv(process.env.SUPABASE_URL);
-  const serviceRoleKey = trimEnv(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const url = trimEnv(readEnv("SUPABASE_URL"));
+  const serviceRoleKey = trimEnv(readEnv("SUPABASE_SERVICE_ROLE_KEY"));
 
   if (!url || !serviceRoleKey) {
     return null;
@@ -37,7 +118,7 @@ export function getSupabaseConfig(): SupabaseConfig | null {
 
 export function getAppUrl(): string {
   return (
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
+    trimEnv(readEnv("NEXT_PUBLIC_APP_URL")).replace(/\/$/, "") ||
     "http://localhost:3000"
   );
 }
@@ -47,8 +128,8 @@ export function isSupabaseConfigured(): boolean {
 }
 
 export function getSupabaseConfigError(): string | null {
-  const url = trimEnv(process.env.SUPABASE_URL);
-  const serviceRoleKey = trimEnv(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const url = trimEnv(readEnv("SUPABASE_URL"));
+  const serviceRoleKey = trimEnv(readEnv("SUPABASE_SERVICE_ROLE_KEY"));
 
   if (!url && !serviceRoleKey) {
     return "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are not set";
@@ -77,30 +158,28 @@ export function getSupabaseConfigError(): string | null {
 }
 
 export function isResendConfigured(): boolean {
-  const apiKey = trimEnv(process.env.RESEND_API_KEY);
-  const fromEmail = trimEnv(process.env.RESEND_FROM_EMAIL);
+  const apiKey = trimEnv(readEnv("RESEND_API_KEY"));
+  const fromEmail = trimEnv(readEnv("RESEND_FROM_EMAIL"));
   return Boolean(apiKey && fromEmail);
 }
 
 export function isStripeConfigured(): boolean {
-  return getStripeConfig() !== null;
+  return buildStripeConfigDiagnostics().rejectReason === null;
 }
 
 export function getStripeConfig(): { secretKey: string; priceId: string } | null {
-  const secretKey = trimEnv(process.env.STRIPE_SECRET_KEY);
-  const priceId = trimEnv(process.env.STRIPE_PRICE_ID);
+  const diagnostics = logStripeConfigDiagnostics("getStripeConfig");
 
-  if (!secretKey || !priceId) {
+  if (diagnostics.rejectReason) {
     return null;
   }
 
-  if (!secretKey.startsWith("sk_")) {
-    return null;
-  }
-
-  if (!priceId.startsWith("price_")) {
-    return null;
-  }
+  const secretKey = trimEnv(readEnv("STRIPE_SECRET_KEY"));
+  const priceId = trimEnv(readEnv("STRIPE_PRICE_ID"));
 
   return { secretKey, priceId };
+}
+
+export function getStripeConfigDiagnostics(): StripeConfigDiagnostics {
+  return buildStripeConfigDiagnostics();
 }
