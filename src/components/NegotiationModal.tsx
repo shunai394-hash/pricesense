@@ -1,42 +1,84 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { ANALYTICS_EVENTS, trackEvent } from "@/lib/analytics";
 import { formatYen } from "@/lib/calculator";
+import {
+  splitNegotiationPreview,
+  type NegotiationPack,
+  type NegotiationVariantId,
+} from "@/lib/negotiation";
 
 interface NegotiationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  subject: string;
-  body: string;
-  tips: string[];
+  negotiationPack: NegotiationPack;
+  isPremium?: boolean;
   userRate: number;
   targetRate: number;
   annualUpgradeImpact: number;
-  tone: "formal" | "direct";
-  onToneChange: (tone: "formal" | "direct") => void;
-  onExportPdf?: () => void;
+  onRequestPdfByEmail?: () => void;
   isPdfExporting?: boolean;
+  onOpenPremiumPurchase: (source: string) => void;
+}
+
+function LockIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      aria-hidden
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+      />
+    </svg>
+  );
 }
 
 export function NegotiationModal({
   isOpen,
   onClose,
-  subject,
-  body,
-  tips,
+  negotiationPack,
+  isPremium = false,
   userRate,
   targetRate,
   annualUpgradeImpact,
-  tone,
-  onToneChange,
-  onExportPdf,
+  onRequestPdfByEmail,
   isPdfExporting = false,
+  onOpenPremiumPurchase,
 }: NegotiationModalProps) {
   const [mounted, setMounted] = useState(false);
-  const [editedBody, setEditedBody] = useState(body);
+  const [activeVariantId, setActiveVariantId] =
+    useState<NegotiationVariantId>("formal");
+  const [editedBody, setEditedBody] = useState(
+    negotiationPack.primary.body
+  );
   const [copiedField, setCopiedField] = useState<"subject" | "body" | "all" | null>(
     null
+  );
+
+  const activeVariant = useMemo(
+    () =>
+      negotiationPack.variants.find((variant) => variant.id === activeVariantId) ??
+      negotiationPack.variants[0],
+    [negotiationPack.variants, activeVariantId]
+  );
+
+  const activeResult = activeVariant.result;
+  const previewSplit = useMemo(
+    () => splitNegotiationPreview(activeResult.body),
+    [activeResult.body]
+  );
+  const rejectionPreview = useMemo(
+    () => splitNegotiationPreview(negotiationPack.rejectionResponse),
+    [negotiationPack.rejectionResponse]
   );
 
   useEffect(() => {
@@ -44,16 +86,18 @@ export function NegotiationModal({
   }, []);
 
   useEffect(() => {
-    setEditedBody(body);
-  }, [body]);
+    setEditedBody(activeResult.body);
+  }, [activeResult.body]);
 
-  const fullText = `件名：${subject}\n\n${editedBody}`;
+  const fullText = `件名：${activeResult.subject}\n\n${editedBody}`;
 
   const handleCopy = useCallback(
     async (field: "subject" | "body" | "all") => {
+      if (!isPremium) return;
+
       const text =
         field === "subject"
-          ? subject
+          ? activeResult.subject
           : field === "body"
             ? editedBody
             : fullText;
@@ -74,7 +118,15 @@ export function NegotiationModal({
       setCopiedField(field);
       setTimeout(() => setCopiedField(null), 2000);
     },
-    [subject, editedBody, fullText]
+    [isPremium, activeResult.subject, editedBody, fullText]
+  );
+
+  const handleOpenPremium = useCallback(
+    (source: string) => {
+      trackEvent(ANALYTICS_EVENTS.premiumUpgradeClick, { source });
+      onOpenPremiumPurchase(source);
+    },
+    [onOpenPremiumPurchase]
   );
 
   useEffect(() => {
@@ -136,6 +188,11 @@ export function NegotiationModal({
               >
                 値上げ交渉文
               </h2>
+              {!isPremium && (
+                <p className="mt-1 text-xs text-muted">
+                  無料版: サンプル冒頭のみ表示 · コピー不可
+                </p>
+              )}
             </div>
             <button
               type="button"
@@ -182,79 +239,137 @@ export function NegotiationModal({
             </div>
           </div>
 
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted">文体：</span>
-            <button
-              type="button"
-              onClick={() => onToneChange("formal")}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                tone === "formal"
-                  ? "border-accent/40 bg-accent/15 text-accent"
-                  : "border-border text-muted hover:border-accent/30"
-              }`}
-            >
-              フォーマル
-            </button>
-            <button
-              type="button"
-              onClick={() => onToneChange("direct")}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                tone === "direct"
-                  ? "border-accent/40 bg-accent/15 text-accent"
-                  : "border-border text-muted hover:border-accent/30"
-              }`}
-            >
-              ややカジュアル
-            </button>
+          <div className="mb-4">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-medium text-muted">交渉文パターン</span>
+              {!isPremium && (
+                <span className="text-[10px] text-muted">Premiumで3パターン</span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {negotiationPack.variants.map((variant) => {
+                const isLocked = !isPremium && variant.id !== "formal";
+                const isActive = activeVariantId === variant.id;
+
+                return (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    onClick={() => {
+                      if (isLocked) {
+                        handleOpenPremium("negotiation_variant");
+                        return;
+                      }
+                      setActiveVariantId(variant.id);
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      isActive
+                        ? "border-accent/40 bg-accent/15 text-accent"
+                        : "border-border text-muted hover:border-accent/30"
+                    }`}
+                  >
+                    {isLocked && <LockIcon className="h-3.5 w-3.5 text-accent/70" />}
+                    {variant.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="mb-4">
             <div className="mb-2 flex items-center justify-between">
               <label className="text-xs font-medium text-muted">件名</label>
-              <button
-                type="button"
-                onClick={() => handleCopy("subject")}
-                className="text-xs text-accent hover:text-accent/80"
-              >
-                {copiedField === "subject" ? "コピーしました" : "件名をコピー"}
-              </button>
+              {isPremium && (
+                <button
+                  type="button"
+                  onClick={() => handleCopy("subject")}
+                  className="text-xs text-accent hover:text-accent/80"
+                >
+                  {copiedField === "subject" ? "コピーしました" : "件名をコピー"}
+                </button>
+              )}
             </div>
-            <div className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground">
-              {subject}
+            <div
+              className={`rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground ${
+                !isPremium ? "select-none" : ""
+              }`}
+              onCopy={!isPremium ? (e) => e.preventDefault() : undefined}
+            >
+              {activeResult.subject}
             </div>
           </div>
 
           <div className="mb-5">
             <div className="mb-2 flex items-center justify-between">
-              <label
-                htmlFor="negotiation-body"
-                className="text-xs font-medium text-muted"
-              >
-                本文（編集可能）
+              <label className="text-xs font-medium text-muted">
+                {isPremium ? "本文（編集可能）" : "本文サンプル（冒頭のみ）"}
               </label>
-              <button
-                type="button"
-                onClick={() => handleCopy("body")}
-                className="text-xs text-accent hover:text-accent/80"
-              >
-                {copiedField === "body" ? "コピーしました" : "本文をコピー"}
-              </button>
+              {isPremium && (
+                <button
+                  type="button"
+                  onClick={() => handleCopy("body")}
+                  className="text-xs text-accent hover:text-accent/80"
+                >
+                  {copiedField === "body" ? "コピーしました" : "本文をコピー"}
+                </button>
+              )}
             </div>
-            <textarea
-              id="negotiation-body"
-              value={editedBody}
-              onChange={(e) => setEditedBody(e.target.value)}
-              rows={12}
-              className="w-full resize-y rounded-xl border border-border bg-surface px-4 py-3 font-sans text-sm leading-relaxed text-foreground/90 transition-colors focus:border-accent/50 focus:outline-none focus:ring-1 focus:ring-accent/30"
-            />
+
+            {isPremium ? (
+              <textarea
+                id="negotiation-body"
+                value={editedBody}
+                onChange={(e) => setEditedBody(e.target.value)}
+                rows={12}
+                className="w-full resize-y rounded-xl border border-border bg-surface px-4 py-3 font-sans text-sm leading-relaxed text-foreground/90 transition-colors focus:border-accent/50 focus:outline-none focus:ring-1 focus:ring-accent/30"
+              />
+            ) : (
+              <div
+                className="rounded-xl border border-border bg-surface px-4 py-3 text-sm leading-relaxed text-muted select-none"
+                onCopy={(e) => e.preventDefault()}
+              >
+                <span className="whitespace-pre-wrap text-foreground/90">
+                  {previewSplit.preview}
+                </span>
+                {previewSplit.isTruncated && (
+                  <span className="select-none blur-[3px]">
+                    {"\n\n"}
+                    {activeResult.body.slice(previewSplit.preview.length)}
+                  </span>
+                )}
+                <p className="mt-3 text-xs text-muted/80">
+                  Premiumで全文表示・編集・コピーが可能です
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="mb-5 rounded-xl border border-accent/20 bg-accent/5 px-4 py-3">
+            <div className="mb-2 flex items-center gap-2">
+              {!isPremium && <LockIcon className="h-4 w-4 text-accent/70" />}
+              <p className="text-xs font-medium text-foreground/80">
+                断られた場合の返答文
+              </p>
+            </div>
+            {isPremium ? (
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                {negotiationPack.rejectionResponse}
+              </p>
+            ) : (
+              <div className="select-none text-sm leading-relaxed text-muted" onCopy={(e) => e.preventDefault()}>
+                <span className="text-foreground/80">{rejectionPreview.preview}</span>
+                <span className="blur-[3px]">
+                  {negotiationPack.rejectionResponse.slice(rejectionPreview.preview.length)}
+                </span>
+                <p className="mt-2 text-xs text-muted/80">Premiumで全文表示</p>
+              </div>
+            )}
           </div>
 
           <div className="rounded-xl border border-border/80 bg-surface/60 px-4 py-3">
-            <p className="text-xs font-medium text-foreground/80">
-              交渉のヒント
-            </p>
+            <p className="text-xs font-medium text-foreground/80">交渉のヒント</p>
             <ul className="mt-2 space-y-1.5">
-              {tips.map((tip) => (
+              {activeResult.tips.map((tip) => (
                 <li
                   key={tip}
                   className="flex items-start gap-2 text-xs text-muted"
@@ -269,31 +384,19 @@ export function NegotiationModal({
 
         <footer className="flex shrink-0 flex-col gap-3 border-t border-border px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted">
-            相場データに基づき自動生成 · 自由に編集してご利用ください
+            {isPremium
+              ? "相場データに基づき自動生成 · 自由に編集してご利用ください"
+              : "無料版はサンプル表示のみ · Premiumで全文利用"}
           </p>
           <div className="flex flex-wrap gap-3">
-            {onExportPdf && (
+            {onRequestPdfByEmail && (
               <button
                 type="button"
-                onClick={onExportPdf}
+                onClick={onRequestPdfByEmail}
                 disabled={isPdfExporting}
                 className="inline-flex items-center gap-2 rounded-xl border border-accent/40 bg-accent/10 px-5 py-3 text-sm font-semibold text-accent transition-colors hover:border-accent/60 hover:bg-accent/15 disabled:opacity-50"
               >
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                  aria-hidden
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12M12 16.5V3"
-                  />
-                </svg>
-                {isPdfExporting ? "PDF生成中..." : "PDF保存"}
+                {isPdfExporting ? "PDF生成中..." : "PDFを保存する"}
               </button>
             )}
             <button
@@ -303,13 +406,23 @@ export function NegotiationModal({
             >
               閉じる
             </button>
-            <button
-              type="button"
-              onClick={() => handleCopy("all")}
-              className="rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-background transition-all hover:bg-accent/90"
-            >
-              {copiedField === "all" ? "コピーしました" : "全文をコピー"}
-            </button>
+            {isPremium ? (
+              <button
+                type="button"
+                onClick={() => handleCopy("all")}
+                className="rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-background transition-all hover:bg-accent/90"
+              >
+                {copiedField === "all" ? "コピーしました" : "全文をコピー"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleOpenPremium("negotiation_footer")}
+                className="rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-background transition-all hover:bg-accent/90"
+              >
+                Premiumで全文を利用する
+              </button>
+            )}
           </div>
         </footer>
       </div>

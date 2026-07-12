@@ -12,8 +12,12 @@ export const WORKING_DAYS_PER_YEAR = 220;
 export const MARKET_DATA_META = {
   updatedAt: "2026年1月",
   sourceLabel: "フリーランス市場調査（参考値）",
+  referenceNote:
+    "ランサーズ・クラウドワークス等の公開単価データ、業界レポート、求人・案件情報を横断的に参照し、職種ごとの相場レンジとして整理しています。",
   methodology:
-    "職種別の日単価（最低・平均・上位25%・上位10%）は、公開されている業界調査および市場データをもとに設定しています。",
+    "職種別の日単価を「最低・平均・上位25%・上位10%」の4段階で設定。各段階は同一職種内の案件単価分布を参考に、外れ値を除いたレンジとして算出しています。",
+  diagnosisCriteria:
+    "入力した日単価を、選択した職種の4段階相場と比較。市場平均との差額・市場内ポジション・年間機会損失（220稼働日換算）を自動算出します。",
   workingDaysNote: `年間換算は${WORKING_DAYS_PER_YEAR}稼働日で計算`,
   disclaimer:
     "表示される相場は参考値です。スキル・経験・案件条件により実際の単価は異なります。",
@@ -72,6 +76,10 @@ export function calculateUpgradeImpact(
 
 export function calculateAnnualRevenue(dailyRate: number): number {
   return dailyRate * WORKING_DAYS_PER_YEAR;
+}
+
+export function calculateMonthlyFromAnnual(annualAmount: number): number {
+  return Math.round(Math.abs(annualAmount) / 12);
 }
 
 export interface AnnualSimulationRow {
@@ -355,6 +363,56 @@ export function getDiagnosis(
     actionMessage,
     negotiationUrgency,
   };
+}
+
+export interface PdfCompleteInsight {
+  headline: string;
+  details: { label: string; value: string }[];
+}
+
+export function getPdfCompleteInsight(
+  userRate: number,
+  marketRate: number,
+  targetRate: number,
+  category: JobCategory
+): PdfCompleteInsight | null {
+  if (userRate <= 0) return null;
+
+  const details: PdfCompleteInsight["details"] = [
+    { label: "現在単価", value: `${formatYen(userRate)} / 日` },
+    {
+      label: "市場平均",
+      value: `${formatYen(marketRate)} / 日（参考値）`,
+    },
+    {
+      label: "交渉目標",
+      value: `${formatYen(targetRate)} / 日`,
+    },
+  ];
+
+  const targetGap = Math.max(0, targetRate - userRate);
+  let headline: string;
+
+  if (userRate < category.top25Rate) {
+    const top25Gap = category.top25Rate - userRate;
+    headline = `上位25%単価（参考値）まであと${formatYen(top25Gap)}/日です。`;
+  } else if (userRate < category.top10Rate) {
+    const top10Gap = category.top10Rate - userRate;
+    headline = `上位10%単価（参考値）まであと${formatYen(top10Gap)}/日です。`;
+  } else if (targetGap > 0) {
+    headline = `交渉目標単価まであと${formatYen(targetGap)}/日（参考値）です。`;
+  } else {
+    headline = `市場上位水準（参考値）に達しています。交渉目標は${formatYen(targetRate)}/日です。`;
+  }
+
+  if (targetGap > 0) {
+    details.push({
+      label: "目標単価との差",
+      value: `${formatYen(targetGap)}/日（参考値）`,
+    });
+  }
+
+  return { headline, details };
 }
 
 export function getMarketRangePosition(

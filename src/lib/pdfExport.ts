@@ -136,7 +136,7 @@ function buildPdfHtml(data: PdfExportData): string {
   `;
 }
 
-export async function exportDiagnosisPdf(data: PdfExportData): Promise<void> {
+async function renderDiagnosisPdf(data: PdfExportData): Promise<jsPDF> {
   const container = document.createElement("div");
   container.style.position = "fixed";
   container.style.left = "-9999px";
@@ -175,9 +175,33 @@ export async function exportDiagnosisPdf(data: PdfExportData): Promise<void> {
       heightLeft -= pageHeight - margin * 2;
     }
 
-    const date = new Date().toISOString().slice(0, 10);
-    pdf.save(`pricesense-${data.category.id}-${date}.pdf`);
+    return pdf;
   } finally {
     document.body.removeChild(container);
   }
+}
+
+export async function exportDiagnosisPdf(data: PdfExportData): Promise<void> {
+  const pdf = await renderDiagnosisPdf(data);
+  const date = new Date().toISOString().slice(0, 10);
+  pdf.save(`pricesense-${data.category.id}-${date}.pdf`);
+}
+
+export interface PdfAttachmentPayload {
+  filename: string;
+  contentBase64: string;
+}
+
+export async function exportDiagnosisPdfAsBase64(
+  data: PdfExportData
+): Promise<PdfAttachmentPayload> {
+  const pdf = await renderDiagnosisPdf(data);
+  const date = new Date().toISOString().slice(0, 10);
+  const dataUri = pdf.output("datauristring");
+  const contentBase64 = dataUri.split(",")[1] ?? "";
+
+  return {
+    filename: `pricesense-${data.category.id}-${date}.pdf`,
+    contentBase64,
+  };
 }

@@ -1,6 +1,16 @@
 import { Calculator } from "@/components/Calculator";
 import { Features } from "@/components/Features";
+import { LeadDebugPanel } from "@/components/LeadDebugPanel";
+import { SiteFooter } from "@/components/SiteFooter";
+import { SiteHeader } from "@/components/SiteHeader";
+import { SoftwareApplicationStructuredData } from "@/components/SoftwareApplicationStructuredData";
+import { TrustSection } from "@/components/TrustSection";
 import { JOB_CATEGORY_COUNT } from "@/data/jobCategories";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 export default function Home() {
   return (
@@ -13,42 +23,9 @@ export default function Home() {
         <div className="absolute -right-40 bottom-0 h-[500px] w-[500px] rounded-full bg-accent/[0.02] blur-[100px]" />
       </div>
 
-      <header className="relative z-10 border-b border-border/50">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-accent/30 bg-accent/10">
-              <span className="font-display text-lg font-bold text-accent">
-                P
-              </span>
-            </div>
-            <span className="font-display text-xl font-semibold tracking-wide text-foreground">
-              PriceSense
-            </span>
-          </div>
-          <nav className="hidden items-center gap-8 sm:flex">
-            <a
-              href="#diagnosis"
-              className="text-sm text-muted transition-colors hover:text-foreground"
-            >
-              診断
-            </a>
-            <a
-              href="#features"
-              className="text-sm text-muted transition-colors hover:text-foreground"
-            >
-              特徴
-            </a>
-            <a
-              href="#diagnosis"
-              className="rounded-lg border border-accent/30 bg-accent/10 px-4 py-2 text-sm font-medium text-accent transition-all hover:bg-accent/20"
-            >
-              無料診断
-            </a>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader active="home" />
 
-      <main className="relative z-10">
+      <main id="main-content" className="relative z-10">
         <section className="px-6 pb-16 pt-16 sm:pb-24 sm:pt-24 lg:pt-32">
           <div className="mx-auto max-w-6xl">
             <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
@@ -63,27 +40,25 @@ export default function Home() {
                   <br />
                   取り逃していますか？
                 </h1>
-                <p className="animate-fade-up-delay-2 mt-6 text-base leading-relaxed text-muted sm:text-lg">
-                  職種と単価を入力するだけ。
-                  <br className="hidden sm:block" />
-                  市場比較から値上げ交渉文の生成まで、ワンストップで完結。
-                </p>
-                <ul className="animate-fade-up-delay-3 mt-8 space-y-3">
+
+                <ul className="animate-fade-up-delay-2 mt-6 grid gap-2 sm:grid-cols-2">
                   {[
-                    "登録不要・30秒で診断完了",
-                    `${JOB_CATEGORY_COUNT}職種の市場相場と即時比較`,
-                    "目標単価を設定して交渉文を自動生成",
+                    "自分の単価が適正かわかる",
+                    "市場平均との差がわかる",
+                    "年間で取り逃している金額がわかる",
+                    "交渉材料まで作れる",
                   ].map((item) => (
                     <li
                       key={item}
-                      className="flex items-start gap-2.5 text-sm text-muted"
+                      className="flex items-center gap-2 rounded-lg border border-border/60 bg-surface/40 px-3 py-2 text-sm text-foreground/90"
                     >
                       <svg
-                        className="mt-0.5 h-4 w-4 shrink-0 text-accent"
+                        className="h-4 w-4 shrink-0 text-accent"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
                         strokeWidth={2}
+                        aria-hidden
                       >
                         <path
                           strokeLinecap="round"
@@ -95,6 +70,38 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
+
+                <div className="animate-fade-up-delay-3 mt-8">
+                  <a
+                    href="#diagnosis"
+                    className="group relative inline-flex w-full items-center justify-center gap-2.5 rounded-xl bg-accent px-8 py-4 text-base font-semibold text-background shadow-[0_0_32px_rgba(232,197,71,0.15)] transition-all hover:bg-accent/90 hover:shadow-[0_0_48px_rgba(232,197,71,0.3)] active:scale-[0.98] sm:w-auto sm:px-10 sm:py-5 sm:text-lg"
+                  >
+                    無料で単価診断する（30秒）
+                    <svg
+                      className="h-5 w-5 transition-transform group-hover:translate-y-0.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      aria-hidden
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M4.5 15.75l7.5-7.5 7.5 7.5"
+                      />
+                    </svg>
+                  </a>
+                  <p className="mt-3 text-center text-xs text-muted sm:text-left">
+                    登録不要 / {JOB_CATEGORY_COUNT}職種対応 / 市場相場と比較
+                  </p>
+                </div>
+
+                <p className="animate-fade-up-delay-3 mt-6 text-base leading-relaxed text-muted sm:text-lg">
+                  職種と単価を入力するだけ。
+                  <br className="hidden sm:block" />
+                  市場比較から値上げ交渉文の生成まで、ワンストップで完結。
+                </p>
               </div>
 
               <div id="diagnosis" className="animate-fade-up-delay-2 scroll-mt-24">
@@ -103,6 +110,8 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        <TrustSection variant="section" />
 
         <div id="features" className="scroll-mt-24">
           <Features />
@@ -124,7 +133,7 @@ export default function Home() {
               href="#diagnosis"
               className="mt-8 inline-flex items-center gap-2 rounded-xl bg-accent px-8 py-4 text-base font-semibold text-background transition-all hover:bg-accent/90 hover:shadow-[0_0_40px_rgba(232,197,71,0.25)]"
             >
-              今すぐ無料診断
+              無料で単価診断する（30秒）
               <svg
                 className="h-5 w-5"
                 fill="none"
@@ -143,19 +152,10 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="relative z-10 border-t border-border/50 px-6 py-8">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
-          <div className="flex items-center gap-2">
-            <span className="font-display text-lg font-semibold text-foreground">
-              PriceSense
-            </span>
-            <span className="text-sm text-muted">© 2026</span>
-          </div>
-          <p className="text-xs text-muted">
-            本サービスの相場データは参考値です。個別の案件条件により異なります。
-          </p>
-        </div>
-      </footer>
+      <SiteFooter />
+
+      <LeadDebugPanel />
+      <SoftwareApplicationStructuredData />
     </div>
   );
 }

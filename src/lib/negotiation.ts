@@ -22,6 +22,25 @@ export interface NegotiationResult {
   tips: string[];
 }
 
+export type NegotiationVariantId = "formal" | "direct" | "value_focused";
+
+export interface NegotiationVariant {
+  id: NegotiationVariantId;
+  label: string;
+  result: NegotiationResult;
+}
+
+export interface NegotiationPack {
+  primary: NegotiationResult;
+  variants: NegotiationVariant[];
+  rejectionResponse: string;
+}
+
+export interface NegotiationPreviewSplit {
+  preview: string;
+  isTruncated: boolean;
+}
+
 function roundToThousands(value: number): number {
   return Math.round(value / 1000) * 1000;
 }
@@ -215,6 +234,87 @@ ${getClosing(tone)}`;
     body,
     fullText: `件名：${subject}\n\n${body}`,
     tips: getNegotiationTips("above_market", category),
+  };
+}
+
+function generateValueFocusedTemplate(
+  params: NegotiationParams
+): NegotiationResult {
+  const { category, userRate, targetRate, marketRate } = params;
+  const subject = "単価改定のご相談（提供価値の整理）";
+
+  const body = `${getGreeting("formal")}
+
+平素より${category.label}業務にお任せいただき、誠にありがとうございます。
+${category.description}において、${category.skillExamples}を中心に
+成果創出と品質維持に取り組んでまいりました。
+
+改定の背景として、対応範囲の明確化と提供価値の整理を行ったうえで、
+日単価を${formatYen(userRate)}から${formatYen(targetRate)}へ
+見直していただきたくご相談です（参考市場平均 ${formatYen(marketRate)}）。
+
+引き続き、プロジェクト成果に直結する形で貢献してまいります。
+${getClosing("formal")}`;
+
+  return {
+    subject,
+    body,
+    fullText: `件名：${subject}\n\n${body}`,
+    tips: getNegotiationTips(params.diagnosisLevel, category),
+  };
+}
+
+export function generateRejectionResponse(params: NegotiationParams): string {
+  const { category, userRate, targetRate } = params;
+
+  return `${getGreeting("formal")}
+
+ご返信ありがとうございます。
+単価改定のご提案について、ご検討いただき重ねて御礼申し上げます。
+
+改めて、${category.label}としての対応範囲（${category.description}）と
+これまでの成果（${category.skillExamples}）を整理したうえで、
+現行${formatYen(userRate)}/日から${formatYen(targetRate)}/日への
+段階的な見直し可否について、ご相談させていただけますと幸いです。
+
+急ぎではございませんので、次回の契約更新タイミング等で
+改めてお話しできればと存じます。
+${getClosing("formal")}`;
+}
+
+export function splitNegotiationPreview(body: string): NegotiationPreviewSplit {
+  const paragraphs = body.split("\n\n").filter(Boolean);
+  if (paragraphs.length <= 2) {
+    const previewLength = Math.min(body.length, Math.max(120, Math.floor(body.length * 0.4)));
+    const preview = body.slice(0, previewLength).trim();
+    return {
+      preview,
+      isTruncated: preview.length < body.length,
+    };
+  }
+
+  const preview = paragraphs.slice(0, 2).join("\n\n");
+  return {
+    preview,
+    isTruncated: true,
+  };
+}
+
+export function generateNegotiationPack(
+  params: NegotiationParams
+): NegotiationPack {
+  const formal = generateNegotiationMessage({ ...params, tone: "formal" });
+  const directResult = generateNegotiationMessage({ ...params, tone: "direct" });
+  const valueFocused = generateValueFocusedTemplate(params);
+
+  return {
+    primary: formal,
+    variants: [
+      { id: "formal", label: "フォーマル", result: formal },
+      { id: "direct", label: "ややカジュアル", result: directResult },
+      { id: "value_focused", label: "提供価値重視", result: valueFocused },
+    ],
+    rejectionResponse: generateRejectionResponse(params),
   };
 }
 
