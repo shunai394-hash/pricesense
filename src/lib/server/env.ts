@@ -83,7 +83,24 @@ export function isResendConfigured(): boolean {
 }
 
 export function isStripeConfigured(): boolean {
+  return getStripeConfig() !== null;
+}
+
+export function getStripeConfig(): { secretKey: string; priceId: string } | null {
   const secretKey = trimEnv(process.env.STRIPE_SECRET_KEY);
   const priceId = trimEnv(process.env.STRIPE_PRICE_ID);
-  return Boolean(secretKey && priceId);
+
+  if (!secretKey || !priceId) {
+    return null;
+  }
+
+  if (!secretKey.startsWith("sk_")) {
+    return null;
+  }
+
+  if (!priceId.startsWith("price_")) {
+    return null;
+  }
+
+  return { secretKey, priceId };
 }

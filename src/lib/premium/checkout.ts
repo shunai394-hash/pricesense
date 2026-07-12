@@ -4,6 +4,7 @@ import { getCachedLeadEmail } from "@/lib/leads";
 export interface PremiumCheckoutResult {
   ok: boolean;
   url?: string;
+  error?: string;
 }
 
 export async function startPremiumCheckout(
@@ -21,14 +22,30 @@ export async function startPremiumCheckout(
       }),
     });
 
-    const data = (await response.json()) as { url?: string };
+    let data: { url?: string; error?: string } = {};
+    try {
+      data = (await response.json()) as { url?: string; error?: string };
+    } catch {
+      // Response body may be empty on some failures.
+    }
 
     if (response.ok && data.url) {
       return { ok: true, url: data.url };
     }
 
-    return { ok: false };
+    const fallback =
+      response.status === 503
+        ? "決済機能の準備ができていません。しばらくしてから再度お試しください。"
+        : "決済の開始に失敗しました。時間をおいて再度お試しください。";
+
+    return {
+      ok: false,
+      error: data.error ?? fallback,
+    };
   } catch {
-    return { ok: false };
+    return {
+      ok: false,
+      error: "決済の開始に失敗しました。ネットワーク接続をご確認ください。",
+    };
   }
 }

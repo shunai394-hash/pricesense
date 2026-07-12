@@ -1,15 +1,16 @@
 import Stripe from "stripe";
-import { isStripeConfigured } from "@/lib/server/env";
+import { getStripeConfig } from "@/lib/server/env";
 
 let stripeClient: Stripe | null = null;
 
 export function getStripe(): Stripe {
-  if (!isStripeConfigured()) {
+  const config = getStripeConfig();
+  if (!config) {
     throw new Error("Stripe is not configured");
   }
 
   if (!stripeClient) {
-    stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    stripeClient = new Stripe(config.secretKey, {
       typescript: true,
     });
   }

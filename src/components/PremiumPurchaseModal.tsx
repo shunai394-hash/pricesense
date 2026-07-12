@@ -76,7 +76,8 @@ export function PremiumPurchaseModal({
   diagnosisContext,
 }: PremiumPurchaseModalProps) {
   const [mounted, setMounted] = useState(false);
-  const [isPreparing, setIsPreparing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
 
   const showContext = hasDiagnosisContext(diagnosisContext);
   const marketComparison = useMemo(
@@ -101,7 +102,8 @@ export function PremiumPurchaseModal({
 
   useEffect(() => {
     if (!isOpen) {
-      setIsPreparing(false);
+      setIsLoading(false);
+      setCheckoutError("");
     }
   }, [isOpen]);
 
@@ -136,7 +138,8 @@ export function PremiumPurchaseModal({
   }, [isOpen, onClose]);
 
   const handlePurchaseClick = async () => {
-    setIsPreparing(true);
+    setIsLoading(true);
+    setCheckoutError("");
 
     const result = await startPremiumCheckout(source);
 
@@ -144,6 +147,11 @@ export function PremiumPurchaseModal({
       window.location.href = result.url;
       return;
     }
+
+    setIsLoading(false);
+    setCheckoutError(
+      result.error ?? "決済の開始に失敗しました。時間をおいて再度お試しください。"
+    );
   };
 
   if (!isOpen || !mounted) return null;
@@ -299,35 +307,34 @@ export function PremiumPurchaseModal({
           </div>
 
           <div className="mt-5 rounded-xl border border-accent/30 bg-accent/5 px-4 py-4 text-center">
-            <p className="text-xs text-muted">料金（予定）</p>
+            <p className="text-xs text-muted">月額料金（税込）</p>
             <p className="mt-1 text-3xl font-bold text-accent">
               ¥{PREMIUM_MONTHLY_PRICE.toLocaleString("ja-JP")}
               <span className="ml-1 text-sm font-normal text-muted">/ 月</span>
             </p>
             <p className="mt-1 text-xs text-muted/80">
-              正式価格は公開時に告知します
+              いつでも解約可能 · Stripeで安全に決済
             </p>
           </div>
 
-          {isPreparing ? (
-            <div className="mt-5 rounded-xl border border-accent/25 bg-accent/5 px-4 py-4 text-center">
-              <p className="text-sm font-medium text-foreground">公開準備中</p>
-              <p className="mt-2 text-xs leading-relaxed text-muted">
-                決済機能は現在準備中です。公開時に改めてご案内します。
-              </p>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={handlePurchaseClick}
-              className="mt-5 w-full rounded-xl bg-accent px-5 py-3.5 text-sm font-semibold text-background transition-all hover:bg-accent/90"
-            >
-              Premiumを開始する
-            </button>
+          {checkoutError && (
+            <p className="mt-4 rounded-lg border border-accent/30 bg-accent/5 px-4 py-3 text-xs text-accent">
+              {checkoutError}
+            </p>
           )}
 
+          <button
+            type="button"
+            onClick={handlePurchaseClick}
+            disabled={isLoading}
+            aria-busy={isLoading}
+            className="mt-5 w-full rounded-xl bg-accent px-5 py-3.5 text-sm font-semibold text-background transition-all hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isLoading ? "決済ページへ移動中..." : "Premiumを開始する"}
+          </button>
+
           <p className="mt-3 text-center text-xs text-muted/80">
-            現在は購入・決済できません。公開準備中です。
+            クリック後、Stripeの安全な決済ページに移動します
           </p>
         </div>
 

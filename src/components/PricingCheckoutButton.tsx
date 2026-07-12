@@ -15,11 +15,11 @@ export function PricingCheckoutButton({
   children,
 }: PricingCheckoutButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [isUnavailable, setIsUnavailable] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
 
   const handleClick = async () => {
     setIsLoading(true);
-    setIsUnavailable(false);
+    setCheckoutError("");
 
     const result = await startPremiumCheckout(source);
 
@@ -29,32 +29,28 @@ export function PricingCheckoutButton({
     }
 
     setIsLoading(false);
-    setIsUnavailable(true);
+    setCheckoutError(
+      result.error ?? "決済の開始に失敗しました。時間をおいて再度お試しください。"
+    );
   };
 
-  if (isUnavailable) {
-    return (
-      <div
-        className={`rounded-xl border border-accent/25 bg-accent/5 px-5 py-4 text-center ${className}`}
-      >
-        <p className="text-sm font-medium text-foreground">公開準備中</p>
-        <p className="mt-2 text-xs leading-relaxed text-muted">
-          決済機能は現在準備中です。公開時に改めてご案内します。
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={isLoading}
-      aria-busy={isLoading}
-      aria-label={isLoading ? "決済ページへ移動中" : undefined}
-      className={className}
-    >
-      {isLoading ? "処理中..." : children}
-    </button>
+    <>
+      {checkoutError && (
+        <p className="mb-3 rounded-lg border border-accent/30 bg-accent/5 px-4 py-3 text-center text-xs text-accent">
+          {checkoutError}
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={isLoading}
+        aria-busy={isLoading}
+        aria-label={isLoading ? "決済ページへ移動中" : undefined}
+        className={`disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+      >
+        {isLoading ? "決済ページへ移動中..." : children}
+      </button>
+    </>
   );
 }

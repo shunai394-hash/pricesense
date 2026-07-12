@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAppUrl, isStripeConfigured } from "@/lib/server/env";
+import { getAppUrl, getStripeConfig, isStripeConfigured } from "@/lib/server/env";
 import { getStripe } from "@/lib/server/stripe";
 
 export const runtime = "nodejs";
@@ -21,12 +21,20 @@ export async function POST(request: Request) {
     const body = (await request.json()) as CheckoutRequestBody;
     const appUrl = getAppUrl();
     const stripe = getStripe();
+    const stripeConfig = getStripeConfig();
+
+    if (!stripeConfig) {
+      return NextResponse.json(
+        { error: "Stripe is not configured" },
+        { status: 503 }
+      );
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       line_items: [
         {
-          price: process.env.STRIPE_PRICE_ID!,
+          price: stripeConfig.priceId,
           quantity: 1,
         },
       ],
