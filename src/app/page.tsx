@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background">
+    <div className="relative min-h-screen overflow-x-hidden bg-background">
       <div className="noise-overlay fixed inset-0 z-50 opacity-40" />
 
       <div className="pointer-events-none absolute inset-0">
@@ -26,10 +26,10 @@ export default function Home() {
       <SiteHeader active="home" />
 
       <main id="main-content" className="relative z-10">
-        <section className="px-6 pb-16 pt-16 sm:pb-24 sm:pt-24 lg:pt-32">
+        <section className="px-6 pb-16 pt-16 sm:pb-24 sm:pt-20 lg:pt-24">
           <div className="mx-auto max-w-6xl">
-            <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-              <div className="max-w-xl">
+            <div className="grid items-start gap-12 lg:grid-cols-2 lg:items-start lg:gap-16">
+              <div className="max-w-xl lg:self-start">
                 <p className="animate-fade-up text-xs font-medium tracking-widest text-accent">
                   フリーランス単価診断
                 </p>
@@ -104,7 +104,10 @@ export default function Home() {
                 </p>
               </div>
 
-              <div id="diagnosis" className="animate-fade-up-delay-2 scroll-mt-24">
+              <div
+                id="diagnosis"
+                className="animate-fade-up-delay-2 scroll-mt-24 lg:self-start"
+              >
                 <Calculator />
               </div>
             </div>

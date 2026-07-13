@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnnualRevenueSimulation } from "@/components/AnnualRevenueSimulation";
 import { CategorySearch } from "@/components/CategorySearch";
 import { DiagnosisActionBar } from "@/components/DiagnosisActionBar";
+import { MoshimoAffiliateBanner } from "@/components/MoshimoAffiliateBanner";
 import { DiagnosisKeyMetrics } from "@/components/DiagnosisKeyMetrics";
 import { NegotiationModal } from "@/components/NegotiationModal";
 import { PdfEmailCaptureModal } from "@/components/PdfEmailCaptureModal";
@@ -670,6 +671,8 @@ export function Calculator() {
                 />
 
                 <PremiumUpsellCard diagnosisContext={leadDiagnosisContext} />
+
+                <MoshimoAffiliateBanner />
 
                 {/* 4. 交渉文生成 */}
                 <DiagnosisActionBar
