@@ -1,3 +1,4 @@
+import { A8AdSection } from "@/components/A8AffiliateBanner";
 import { Calculator } from "@/components/Calculator";
 import { Features } from "@/components/Features";
 import { LeadDebugPanel } from "@/components/LeadDebugPanel";
@@ -116,6 +117,8 @@ export default function Home() {
 
         <TrustSection variant="section" />
 
+        <A8AdSection slot="afterTrust" />
+
         <div id="features" className="scroll-mt-24">
           <Features />
         </div>
@@ -153,6 +156,8 @@ export default function Home() {
             </a>
           </div>
         </section>
+
+        <A8AdSection slot="beforeFooter" />
       </main>
 
       <SiteFooter />
