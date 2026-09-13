@@ -56,6 +56,12 @@ export function SiteHeader({ active = "home" }: SiteHeaderProps) {
               診断
             </Link>
             <Link
+              href="/#how-it-works"
+              className="text-sm text-muted transition-colors hover:text-foreground"
+            >
+              使い方
+            </Link>
+            <Link
               href="/#features"
               className="text-sm text-muted transition-colors hover:text-foreground"
             >

@@ -98,7 +98,7 @@ export function Features() {
             診断から、次の一手まで
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-sm text-muted">
-            相場を知るだけでなく、案件・転職・今の仕事での単価アップまでつながります。
+            相場を知るだけでなく、Lead登録・AI提案・人間確認・分析まで、同じサービスでつながります。
           </p>
         </div>
 

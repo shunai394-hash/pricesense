@@ -321,12 +321,9 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
         <p className="mt-2 text-sm text-muted">
           既存データのみ表示します。メール送信はしません。
         </p>
-        <p className="mt-3 flex flex-wrap gap-4">
+        <p className="mt-3">
           <Link href="/admin/sales" className="text-sm text-accent">
             ← 今日の営業一覧
-          </Link>
-          <Link href="/admin/ops" className="text-sm text-accent">
-            監査・復旧
           </Link>
         </p>
       </header>

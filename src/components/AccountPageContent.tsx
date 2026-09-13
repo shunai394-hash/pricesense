@@ -135,7 +135,26 @@ export function AccountPageContent() {
           マイページ
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted">
-          現在のプランを確認し、Premiumの解約手続きを行えます。
+          現在のプランを確認し、Premiumの解約手続きを行えます。パスワードログインはありません。PDF保存またはPremium購入時に登録したメールアドレスで確認します。
+        </p>
+
+        <ol className="mt-8 grid gap-3 text-sm sm:grid-cols-2">
+          {[
+            "1. トップで単価診断する",
+            "2. 結果を確認する",
+            "3. PDF保存でLead登録する",
+            "4. 交渉文・次の行動を見る",
+          ].map((step) => (
+            <li
+              key={step}
+              className="rounded-xl border border-border/70 bg-surface/40 px-4 py-3 text-foreground/90"
+            >
+              {step}
+            </li>
+          ))}
+        </ol>
+        <p className="mt-3 text-xs text-muted">
+          営業メールの自動送信はありません。プラン確認のあとに、診断へ戻ることもできます。
         </p>
 
         <form
@@ -233,12 +252,20 @@ export function AccountPageContent() {
             )}
 
             {!account.isPremium && (
-              <Link
-                href="/pricing"
-                className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-accent px-5 py-3.5 text-sm font-semibold text-background transition-all hover:bg-accent/90"
-              >
-                料金プランを見る
-              </Link>
+              <div className="mt-6 grid gap-3">
+                <Link
+                  href="/pricing"
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-accent px-5 py-3.5 text-sm font-semibold text-background transition-all hover:bg-accent/90"
+                >
+                  料金プランを見る
+                </Link>
+                <Link
+                  href="/#diagnosis"
+                  className="inline-flex w-full items-center justify-center rounded-xl border border-border px-5 py-3.5 text-sm font-semibold text-foreground transition-colors hover:border-accent/40"
+                >
+                  診断に戻る
+                </Link>
+              </div>
             )}
 
             {canCancel && (

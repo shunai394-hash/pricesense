@@ -204,7 +204,7 @@ export function PdfEmailCaptureModal({
                   : "メール登録が完了しました"}
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-muted">
-                メールアドレスを登録しました。今後、単価改善に役立つ情報をお届けします。
+                メールアドレスをLeadとして保存しました。AIが勝手に営業メールを送ることはありません。診断PDFはご依頼時のみ送信します。
               </p>
 
               {insight && (
@@ -258,6 +258,12 @@ export function PdfEmailCaptureModal({
                 >
                   プレミアム単価改善レポートを見る
                 </button>
+                <a
+                  href="/account"
+                  className="block w-full rounded-xl border border-border px-4 py-3 text-center text-sm font-medium text-foreground/90 transition-colors hover:border-accent/30"
+                >
+                  マイページでプランを確認する
+                </a>
               </div>
             </section>
 
@@ -284,7 +290,7 @@ export function PdfEmailCaptureModal({
                 診断結果PDFを保存
               </h2>
               <p className="mt-2 text-sm text-muted">
-                診断は登録不要のまま。PDF保存時にメールアドレスを登録すると、端末にPDFを保存し、単価改善の情報もお届けします。
+                診断は登録不要のまま。PDF保存時にメールアドレスを登録すると、Leadとして保存されます。AIが勝手に営業メールを送ることはありません。
               </p>
             </header>
 

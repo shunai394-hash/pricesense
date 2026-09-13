@@ -46,6 +46,7 @@ export default function TermsPage() {
           単価診断自体は登録不要で利用できます。
           PDF保存、Premiumウェイトリスト登録、Premium購入時にはメールアドレス等の情報登録が必要となる場合があります。
           登録情報は Supabase に保存され、PDF送信には Resend が利用されます。
+          マイページはパスワードログインではなく、登録メールアドレスによるプラン確認です。
         </p>
       </LegalSection>
 

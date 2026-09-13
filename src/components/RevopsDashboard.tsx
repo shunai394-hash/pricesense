@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   RevopsCurrencyValue,
@@ -129,14 +128,6 @@ export function RevopsDashboard() {
         <p className="mt-2 max-w-2xl text-sm text-muted">
           AI営業部のリード〜成約を集計します。管理者トークン（ADMIN_TOKEN）が必要です。
         </p>
-        <nav className="mt-4 flex flex-wrap gap-4 text-sm">
-          <Link href="/admin/sales" className="text-accent">
-            今日の営業
-          </Link>
-          <Link href="/admin/ops" className="text-accent">
-            監査・復旧
-          </Link>
-        </nav>
       </header>
 
       <form

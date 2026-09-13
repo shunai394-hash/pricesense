@@ -193,14 +193,6 @@ export function SalesOpsDashboard() {
         <p className="mt-2 max-w-2xl text-sm text-muted">
           AI判断から実行結果、失敗、再実行までを追跡します。外部への自動営業送信は行いません。管理者トークン（ADMIN_TOKEN）が必要です。
         </p>
-        <nav className="mt-4 flex flex-wrap gap-4 text-sm">
-          <Link href="/admin/sales" className="text-accent">
-            今日の営業
-          </Link>
-          <Link href="/admin/revops" className="text-accent">
-            RevOps
-          </Link>
-        </nav>
       </header>
 
       <form

@@ -1,6 +1,7 @@
 import { A8AdSection } from "@/components/A8AffiliateBanner";
 import { Calculator } from "@/components/Calculator";
 import { Features } from "@/components/Features";
+import { HowItWorks } from "@/components/HowItWorks";
 import { LeadDebugPanel } from "@/components/LeadDebugPanel";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -32,27 +33,29 @@ export default function Home() {
             <div className="grid items-start gap-12 lg:grid-cols-2 lg:gap-16">
               <div className="max-w-xl lg:sticky lg:top-24 lg:self-start">
                 <p className="animate-fade-up text-xs font-medium tracking-widest text-accent">
-                  フリーランス単価診断
+                  単価診断 × AI Sales Operations
                 </p>
                 <h1 className="animate-fade-up-delay-1 mt-4 font-display text-4xl font-semibold leading-[1.2] tracking-tight text-foreground sm:text-5xl lg:text-[3.25rem]">
-                  あなたの単価、
+                  診断から、
                   <br />
-                  <span className="gold-shimmer">年間いくら</span>
+                  <span className="gold-shimmer">営業の次の一手</span>
                   <br />
-                  取り逃していますか？
+                  までつなぐ。
                 </h1>
 
                 <div className="animate-fade-up-delay-2 mt-6 space-y-2 text-sm text-foreground/90 sm:text-base">
-                  <p>自分の適正単価を知る。</p>
-                  <p className="text-muted">その次に、単価を上げるために何をすべきかまで分かる。</p>
+                  <p>適正単価を知り、Leadとして残し、AIの提案と人間の確認で進める。</p>
+                  <p className="text-muted">
+                    PriceSenseは、単価診断を入口にした営業オペレーション用のWebサービスです。
+                  </p>
                 </div>
 
                 <ul className="animate-fade-up-delay-2 mt-6 grid gap-2 sm:grid-cols-2">
                   {[
                     "適正単価が30秒でわかる",
-                    "市場平均との差がわかる",
-                    "案件・転職・交渉の次の一手がわかる",
-                    "交渉文まで作れる",
+                    "PDF保存でLead登録",
+                    "AIは提案、実行は人間確認",
+                    "フォロー・商談・分析まで追跡",
                   ].map((item) => (
                     <li
                       key={item}
@@ -77,7 +80,7 @@ export default function Home() {
                   ))}
                 </ul>
 
-                <div className="animate-fade-up-delay-3 mt-8">
+                <div className="animate-fade-up-delay-3 mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                   <a
                     href="#diagnosis"
                     className="group relative inline-flex w-full items-center justify-center gap-2.5 rounded-xl bg-accent px-8 py-4 text-base font-semibold text-background shadow-[0_0_32px_rgba(232,197,71,0.15)] transition-all hover:bg-accent/90 hover:shadow-[0_0_48px_rgba(232,197,71,0.3)] active:scale-[0.98] sm:w-auto sm:px-10 sm:py-5 sm:text-lg"
@@ -98,10 +101,16 @@ export default function Home() {
                       />
                     </svg>
                   </a>
-                  <p className="mt-3 text-center text-xs text-muted sm:text-left">
-                    登録不要 / {JOB_CATEGORY_COUNT}職種対応 / 市場相場と比較
-                  </p>
+                  <a
+                    href="#how-it-works"
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-border px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:border-accent/40 sm:w-auto"
+                  >
+                    使い方を見る
+                  </a>
                 </div>
+                <p className="mt-3 text-center text-xs text-muted sm:text-left">
+                  登録不要で診断 / {JOB_CATEGORY_COUNT}職種対応 / AIによる自動営業メールはありません
+                </p>
               </div>
 
               <div
@@ -116,6 +125,8 @@ export default function Home() {
 
         <TrustSection variant="section" />
 
+        <HowItWorks />
+
         <div id="features" className="scroll-mt-24">
           <Features />
         </div>
@@ -124,32 +135,18 @@ export default function Home() {
           <div className="mx-auto max-w-3xl text-center">
             <div className="gold-line mx-auto mb-10 w-24" />
             <h2 className="font-display text-3xl font-semibold text-foreground sm:text-4xl">
-              適正単価は、
+              今日やるべき営業が、
               <br />
-              データで決める時代。
+              診断の延長にある。
             </h2>
             <p className="mx-auto mt-4 max-w-lg text-muted">
-              感覚ではなく、市場データに基づいた単価設定。
-              診断結果から、次に取るべき行動までつながります。
+              感覚ではなく市場データで単価を見る。登録後はLead・フォロー・Deal・分析まで、同じサービス上でつながります。
             </p>
             <a
               href="#diagnosis"
-              className="mt-8 inline-flex items-center gap-2 rounded-xl bg-accent px-8 py-4 text-base font-semibold text-background transition-all hover:bg-accent/90 hover:shadow-[0_0_40px_rgba(232,197,71,0.25)]"
+              className="mt-8 inline-flex min-h-11 items-center gap-2 rounded-xl bg-accent px-8 py-4 text-base font-semibold text-background transition-all hover:bg-accent/90 hover:shadow-[0_0_40px_rgba(232,197,71,0.25)]"
             >
               無料で単価診断する（30秒）
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4.5 15.75l7.5-7.5 7.5 7.5"
-                />
-              </svg>
             </a>
           </div>
         </section>
@@ -164,3 +161,4 @@ export default function Home() {
     </div>
   );
 }
+

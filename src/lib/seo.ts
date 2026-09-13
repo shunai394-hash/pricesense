@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 export const SITE_NAME = "PriceSense";
-export const SITE_TAGLINE = "フリーランス単価診断";
+export const SITE_TAGLINE = "単価診断とAI営業オペレーション";
 
 export const DEFAULT_TITLE = `${SITE_NAME} — ${SITE_TAGLINE}`;
 export const DEFAULT_DESCRIPTION =
-  "職種と単価を入力するだけ。市場との比較を無料診断。年間機会損失の可視化から値上げ交渉文の作成まで、フリーランスの単価改善をサポートします。";
+  "職種と単価を入力して市場と比較。登録後はLeadとして保存され、AIの提案と人間の確認でフォローアップ・商談・分析までつなぎます。AIが勝手に営業メールを送ることはありません。";
 
 export const SITE_KEYWORDS = [
   "フリーランス",

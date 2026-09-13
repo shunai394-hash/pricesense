@@ -26,6 +26,12 @@ export function SiteFooter() {
             >
               マイページ
             </Link>
+            <Link
+              href="/admin"
+              className="text-sm text-muted transition-colors hover:text-foreground"
+            >
+              営業ワークスペース
+            </Link>
           </div>
           <p className="text-center text-xs text-muted sm:text-right">
             本サービスの相場データは参考値です。個別の案件条件により異なります。

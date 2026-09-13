@@ -11,13 +11,8 @@ export const metadata: Metadata = createPageMetadata({
 
 export default function SalesOpsAdminPage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-1/2 top-0 h-[520px] w-[720px] -translate-x-1/2 rounded-full bg-accent/[0.03] blur-[120px]" />
-      </div>
-      <main id="main-content" className="relative z-10">
-        <SalesOpsDashboard />
-      </main>
-    </div>
+    <main id="main-content">
+      <SalesOpsDashboard />
+    </main>
   );
 }
