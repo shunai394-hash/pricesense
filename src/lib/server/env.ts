@@ -126,7 +126,9 @@ export function getSupabaseConfig(): SupabaseConfig | null {
 export function getAppUrl(): string {
   return (
     trimEnv(readEnv("NEXT_PUBLIC_APP_URL")).replace(/\/$/, "") ||
-    "http://localhost:3000"
+    (process.env.NODE_ENV === "production"
+      ? "https://pricesense-pi.vercel.app"
+      : "http://localhost:3000")
   );
 }
 

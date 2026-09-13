@@ -22,7 +22,7 @@ export const SITE_KEYWORDS = [
 
 export function getSiteUrl(): string {
   const url = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
-  return url && url.length > 0 ? url : "https://pricesense.app";
+  return url && url.length > 0 ? url : "https://pricesense-pi.vercel.app";
 }
 
 interface PageMetadataOptions {
