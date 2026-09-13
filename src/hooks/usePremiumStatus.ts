@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { ANALYTICS_EVENTS, trackEvent } from "@/lib/analytics";
+import { PREMIUM_MONTHLY_PRICE } from "@/lib/pricing";
 import { getCachedLeadEmail, cacheLeadEmail } from "@/lib/leads";
 import { fetchPremiumStatus } from "@/lib/premium/status";
 import {
@@ -46,6 +48,12 @@ export function usePremiumStatus() {
     const sessionId = params.get("session_id");
 
     const finalizeCheckout = async () => {
+      trackEvent(ANALYTICS_EVENTS.purchaseCompleted, {
+        source: "stripe_checkout",
+        value: PREMIUM_MONTHLY_PRICE,
+        currency: "JPY",
+      });
+
       if (sessionId) {
         try {
           const response = await fetch(

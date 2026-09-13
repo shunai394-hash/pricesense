@@ -113,7 +113,8 @@ export default function LegalPage() {
                   <li>交渉文全文生成（3パターン）</li>
                   <li>断られた場合の返答文</li>
                   <li>交渉文のコピー・編集</li>
-                  <li>診断・交渉履歴の保存</li>
+                  <li>案件応募文・職務経歴書改善・面談話法</li>
+                  <li>診断・交渉履歴の保存（今後追加予定）</li>
                 </ul>
               </LegalTableRow>
               <LegalTableRow label="返品・キャンセル">

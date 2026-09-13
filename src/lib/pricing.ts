@@ -18,7 +18,7 @@ export const PRICING_PLANS = {
     priceLabel: `¥${PREMIUM_MONTHLY_PRICE.toLocaleString("ja-JP")}`,
     period: "/ 月",
     description:
-      "診断結果をもとに、単価交渉文・案件応募文・職務経歴書改善・面談対策までまとめて使えます。",
+      "診断結果に合わせた単価交渉文・応募文・職務経歴書改善・面談話法を、毎月使い続けられます。",
   },
 } as const;
 
@@ -102,7 +102,7 @@ export const PRICING_COMPARISON: PricingComparisonRow[] = [
     id: "history",
     feature: "診断・交渉履歴の保存",
     free: false,
-    premium: true,
+    premium: "今後追加予定",
   },
 ];
 
@@ -117,7 +117,7 @@ export const PRICING_FAQ = [
     id: "premium_value",
     question: "Premiumで追加される機能は何ですか？",
     answer:
-      "詳細レポートの全文、単価交渉文（3パターン）、案件応募文、職務経歴書の改善ポイント、面談対策、断り対応文、コピー・編集、PDFへの全文反映、履歴保存が利用できます。診断結果をそのまま次の行動に使えます。",
+      "詳細レポートの全文、単価交渉文（3パターン）、案件応募文、職務経歴書の改善ポイント、面談対策、断り対応文、コピー・編集、PDFへの全文反映が利用できます。診断・交渉履歴の保存は今後追加予定です。",
   },
   {
     id: "cancel",
@@ -142,5 +142,11 @@ export const PRICING_FAQ = [
     question: "複数の職種で使えますか？",
     answer:
       "はい。121職種以上のカテゴリに対応しています。職種を切り替えて何度でも診断できます。Premiumでは職種ごとの詳細レポートと交渉文を生成できます。",
+  },
+  {
+    id: "upcoming",
+    question: "今後どんな機能が追加されますか？",
+    answer:
+      "市場単価の定期チェック、高単価案件の発見、定期的な単価再診断、希望単価との差額管理、交渉文書の保存などを予定しています。まだ使えない機能は「今後追加予定」と表示し、現在使える機能と分けています。",
   },
 ] as const;

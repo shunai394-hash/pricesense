@@ -10,27 +10,7 @@ const features = [
         viewBox="0 0 24 24"
         stroke="currentColor"
         strokeWidth={1.5}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-        />
-      </svg>
-    ),
-    title: "交渉文・応募文まで作れる",
-    description:
-      "診断結果に基づく交渉文サンプルを無料で確認。Premiumで全文、応募文、職務経歴書改善、面談対策まで利用できます。",
-  },
-  {
-    highlighted: false,
-    icon: (
-      <svg
-        className="h-6 w-6"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={1.5}
+        aria-hidden="true"
       >
         <path
           strokeLinecap="round"
@@ -39,8 +19,9 @@ const features = [
         />
       </svg>
     ),
-    title: "リアルタイム診断",
-    description: "入力と同時に市場データと比較。待ち時間ゼロ。",
+    title: "次の一手まで出す",
+    description:
+      "市場より低ければ高単価案件、今の仕事を続けるなら単価交渉。診断結果から、収入を上げやすい行動を先に提示します。",
   },
   {
     highlighted: false,
@@ -51,6 +32,29 @@ const features = [
         viewBox="0 0 24 24"
         stroke="currentColor"
         strokeWidth={1.5}
+        aria-hidden="true"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+        />
+      </svg>
+    ),
+    title: "単価交渉を作れる",
+    description:
+      "今の案件を続ける人向け。市場との差を根拠にした交渉文を作成。Premiumで全文、応募文、職務経歴書改善、面談対策まで利用できます。",
+  },
+  {
+    highlighted: false,
+    icon: (
+      <svg
+        className="h-6 w-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        aria-hidden="true"
       >
         <path
           strokeLinecap="round"
@@ -72,6 +76,7 @@ const features = [
         viewBox="0 0 24 24"
         stroke="currentColor"
         strokeWidth={1.5}
+        aria-hidden="true"
       >
         <path
           strokeLinecap="round"
@@ -82,7 +87,7 @@ const features = [
     ),
     title: "年間インパクト可視化",
     description:
-      "市場との差額・改定後の年間増収をリアルタイム表示。値上げの根拠が数字で伝わる。",
+      "市場との差額を220稼働日で換算した参考値として表示。値上げの根拠が数字で伝わる。",
   },
 ];
 
@@ -98,7 +103,7 @@ export function Features() {
             診断から、次の一手まで
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-sm text-muted">
-            相場を知るだけでなく、案件・転職・今の仕事での単価アップまでつながります。
+            相場を知るだけでなく、今やるべき一手までつながります。
           </p>
         </div>
 

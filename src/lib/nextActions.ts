@@ -1,5 +1,6 @@
 import type { JobCategory, JobGroupId } from "@/data/types";
 import {
+  WORKING_DAYS_PER_YEAR,
   formatYen,
   type DiagnosisLevel,
   type DiagnosisResult,
@@ -7,6 +8,7 @@ import {
 import { A8_OFFERS } from "@/lib/affiliates";
 
 const IT_GROUPS: JobGroupId[] = ["it", "ai"];
+const FREELANCE_PROJECT_GROUPS: JobGroupId[] = ["it", "ai", "design"];
 
 export type NextActionId = "projects" | "career" | "raise_current";
 
@@ -18,84 +20,122 @@ export interface NextActionLink {
 
 export interface DiagnosisNextAction {
   id: NextActionId;
+  headline: string;
   title: string;
   reason: string;
-  recommended: boolean;
   kind: "affiliate" | "premium";
   ctaLabel: string;
   links?: NextActionLink[];
+}
+
+export interface NextMovePlan {
+  primary: DiagnosisNextAction;
+  alternatives: DiagnosisNextAction[];
 }
 
 function isItCategory(group: JobGroupId): boolean {
   return IT_GROUPS.includes(group);
 }
 
-function recommendSet(level: DiagnosisLevel): {
-  projects: boolean;
-  career: boolean;
-  raiseCurrent: boolean;
-} {
-  switch (level) {
-    case "significantly_low":
-      return { projects: true, career: true, raiseCurrent: true };
-    case "below_market":
-      return { projects: true, career: false, raiseCurrent: true };
-    case "at_market":
-      return { projects: false, career: false, raiseCurrent: true };
-    case "above_market":
-      return { projects: true, career: false, raiseCurrent: false };
-    case "premium":
-      return { projects: true, career: true, raiseCurrent: false };
-    default:
-      return { projects: false, career: false, raiseCurrent: true };
-  }
+function isFreelanceProjectCategory(group: JobGroupId): boolean {
+  return FREELANCE_PROJECT_GROUPS.includes(group);
 }
 
-function projectsReason(
+function isBelowMarket(level: DiagnosisLevel): boolean {
+  return level === "significantly_low" || level === "below_market";
+}
+
+function getPrimaryId(
+  level: DiagnosisLevel,
+  group: JobGroupId
+): NextActionId {
+  if (isBelowMarket(level)) {
+    return isFreelanceProjectCategory(group) ? "projects" : "career";
+  }
+  return "raise_current";
+}
+
+function projectLinks(): NextActionLink[] {
+  return [
+    {
+      href: A8_OFFERS.techadapt.href,
+      label: "高単価案件を見る",
+      partnerName: A8_OFFERS.techadapt.name,
+    },
+  ];
+}
+
+function careerLinks(group: JobGroupId): NextActionLink[] {
+  if (isItCategory(group)) {
+    return [
+      {
+        href: A8_OFFERS.techGo.href,
+        label: `${A8_OFFERS.techGo.name}に相談する`,
+        partnerName: A8_OFFERS.techGo.name,
+      },
+    ];
+  }
+
+  return [
+    {
+      href: A8_OFFERS.agentNavi.href,
+      label: "合う仕事を探す",
+      partnerName: A8_OFFERS.agentNavi.name,
+    },
+  ];
+}
+
+function buildActions(
   diagnosis: DiagnosisResult,
   category: JobCategory,
   annualOpportunity: number
-): string {
-  if (diagnosis.level === "significantly_low" || diagnosis.level === "below_market") {
-    return `${category.label}は市場平均より低い水準です。今の契約を見直すだけでなく、より高い単価の案件へ移る選択肢もあります。`;
-  }
-  if (diagnosis.level === "premium") {
-    return `すでに高単価帯です。長期契約や紹介案件など、単価を維持しやすい仕事の探し方が有効です。`;
-  }
-  if (annualOpportunity > 0) {
-    return `市場平均との差は年間 ${formatYen(annualOpportunity)}（参考値）。条件の合う案件を比較すると、単価を上げやすいです。`;
-  }
-  return `${category.label}として、今より条件の良い案件がないか確認する価値があります。`;
+): Record<NextActionId, DiagnosisNextAction> {
+  const below = isBelowMarket(diagnosis.level);
+  const dailyGap = Math.round(
+    Math.abs(annualOpportunity) / WORKING_DAYS_PER_YEAR
+  );
+
+  return {
+    projects: {
+      id: "projects",
+      headline: "まずは高単価案件を探す",
+      title: "高単価案件を探す",
+      reason: below
+        ? `今の単価は市場平均より ${formatYen(dailyGap)} /日 低い状態です。今の単価より高い案件へ移るのが、最短で収入を上げやすい方法です。`
+        : `${category.label}として、今より条件の良い案件がないか確認する価値があります。`,
+      kind: "affiliate",
+      ctaLabel: "高単価案件を見る",
+      links: projectLinks(),
+    },
+    career: {
+      id: "career",
+      headline: below
+        ? "まずは条件の良い仕事を探す"
+        : "まずは転職で収入を上げる",
+      title: "転職で単価・年収を上げる",
+      reason: below
+        ? `${category.label}の経験を、今より条件の良い仕事へ移す選択肢があります。`
+        : "雇用で年収の上限を上げるルートもあります。",
+      kind: "affiliate",
+      ctaLabel: isItCategory(category.group)
+        ? `${A8_OFFERS.techGo.name}に相談する`
+        : "合う仕事を探す",
+      links: careerLinks(category.group),
+    },
+    raise_current: {
+      id: "raise_current",
+      headline: "まずは今の案件の単価を上げる",
+      title: "今の案件の単価を上げる",
+      reason: below
+        ? "今の仕事を続けるなら、市場との差を根拠にした単価交渉から始められます。"
+        : "今の案件を継続したまま、交渉文で次の改定に備えるのが現実的です。",
+      kind: "premium",
+      ctaLabel: "単価交渉を作る",
+    },
+  };
 }
 
-function careerReason(
-  diagnosis: DiagnosisResult,
-  category: JobCategory,
-  isIt: boolean
-): string {
-  if (isIt) {
-    if (diagnosis.level === "significantly_low" || diagnosis.level === "below_market") {
-      return `フリーランス案件だけでなく、IT転職で年収を上げるルートも有効です。`;
-    }
-    return `上流・ハイクラス寄りのIT職へ移ると、単価や年収の上限が上がることがあります。`;
-  }
-  return `${category.label}の経験を活かし、転職で年収条件を上げる方法もあります。`;
-}
-
-function raiseCurrentReason(
-  diagnosis: DiagnosisResult,
-  targetLabel: string
-): string {
-  if (diagnosis.negotiationUrgency === "high") {
-    return `まず今の契約で値上げ交渉する余地が大きい状態です。${targetLabel}向けの交渉文から始められます。`;
-  }
-  if (diagnosis.negotiationUrgency === "optional") {
-    return `大幅な改定より、契約更新・応募文・面談での伝え方を整える方が現実的です。`;
-  }
-  return `今の仕事のまま単価を上げるなら、交渉文・応募文・職務経歴書の改善が最短です。`;
-}
-
-export function getDiagnosisNextActions({
+export function getNextMovePlan({
   diagnosis,
   category,
   annualOpportunity,
@@ -103,63 +143,27 @@ export function getDiagnosisNextActions({
   diagnosis: DiagnosisResult;
   category: JobCategory;
   annualOpportunity: number;
-}): DiagnosisNextAction[] {
-  const recommended = recommendSet(diagnosis.level);
-  const isIt = isItCategory(category.group);
+}): NextMovePlan {
+  const actions = buildActions(diagnosis, category, annualOpportunity);
+  const primaryId = getPrimaryId(diagnosis.level, category.group);
+  const alternativeIds: NextActionId[] = [];
 
-  const careerLinks: NextActionLink[] = isIt
-    ? [
-        {
-          href: A8_OFFERS.techGo.href,
-          label: `${A8_OFFERS.techGo.name}に相談する`,
-          partnerName: A8_OFFERS.techGo.name,
-        },
-        {
-          href: A8_OFFERS.agentNavi.href,
-          label: `${A8_OFFERS.agentNavi.name}で探す`,
-          partnerName: A8_OFFERS.agentNavi.name,
-        },
-      ]
-    : [
-        {
-          href: A8_OFFERS.agentNavi.href,
-          label: `${A8_OFFERS.agentNavi.name}で探す`,
-          partnerName: A8_OFFERS.agentNavi.name,
-        },
-      ];
+  if (primaryId !== "raise_current") {
+    alternativeIds.push("raise_current");
+  }
 
-  return [
-    {
-      id: "projects",
-      title: "高単価案件を探す",
-      reason: projectsReason(diagnosis, category, annualOpportunity),
-      recommended: recommended.projects,
-      kind: "affiliate",
-      ctaLabel: `${A8_OFFERS.techadapt.name}で案件を見る`,
-      links: [
-        {
-          href: A8_OFFERS.techadapt.href,
-          label: `${A8_OFFERS.techadapt.name}で案件を見る`,
-          partnerName: A8_OFFERS.techadapt.name,
-        },
-      ],
-    },
-    {
-      id: "career",
-      title: "転職で単価・年収を上げる",
-      reason: careerReason(diagnosis, category, isIt),
-      recommended: recommended.career,
-      kind: "affiliate",
-      ctaLabel: careerLinks[0].label,
-      links: careerLinks,
-    },
-    {
-      id: "raise_current",
-      title: "今の仕事で単価を上げる",
-      reason: raiseCurrentReason(diagnosis, category.label),
-      recommended: recommended.raiseCurrent,
-      kind: "premium",
-      ctaLabel: "交渉文・応募文を作成する",
-    },
-  ];
+  if (primaryId === "projects") {
+    alternativeIds.push("career");
+  } else if (primaryId === "raise_current") {
+    alternativeIds.push(
+      isFreelanceProjectCategory(category.group) || isItCategory(category.group)
+        ? "projects"
+        : "career"
+    );
+  }
+
+  return {
+    primary: actions[primaryId],
+    alternatives: alternativeIds.map((id) => actions[id]),
+  };
 }

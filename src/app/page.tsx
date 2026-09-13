@@ -32,27 +32,29 @@ export default function Home() {
             <div className="grid items-start gap-12 lg:grid-cols-2 lg:gap-16">
               <div className="max-w-xl lg:sticky lg:top-24 lg:self-start">
                 <p className="animate-fade-up text-xs font-medium tracking-widest text-accent">
-                  フリーランス単価診断
+                  収入改善の意思決定ツール
                 </p>
                 <h1 className="animate-fade-up-delay-1 mt-4 font-display text-4xl font-semibold leading-[1.2] tracking-tight text-foreground sm:text-5xl lg:text-[3.25rem]">
-                  あなたの単価、
+                  あなたなら、次に
                   <br />
-                  <span className="gold-shimmer">年間いくら</span>
+                  何をすれば
                   <br />
-                  取り逃していますか？
+                  <span className="gold-shimmer">収入を上げられるか</span>
                 </h1>
 
                 <div className="animate-fade-up-delay-2 mt-6 space-y-2 text-sm text-foreground/90 sm:text-base">
-                  <p>自分の適正単価を知る。</p>
-                  <p className="text-muted">その次に、単価を上げるために何をすべきかまで分かる。</p>
+                  <p>診断は入口です。</p>
+                  <p className="text-muted">
+                    市場との差を見たあと、案件・交渉・転職のうち今やるべき一手まで出します。
+                  </p>
                 </div>
 
                 <ul className="animate-fade-up-delay-2 mt-6 grid gap-2 sm:grid-cols-2">
                   {[
-                    "適正単価が30秒でわかる",
+                    "職種と単価を入れるだけ",
                     "市場平均との差がわかる",
-                    "案件・転職・交渉の次の一手がわかる",
-                    "交渉文まで作れる",
+                    "今やるべき一手がわかる",
+                    "単価交渉文まで作れる",
                   ].map((item) => (
                     <li
                       key={item}
@@ -124,13 +126,12 @@ export default function Home() {
           <div className="mx-auto max-w-3xl text-center">
             <div className="gold-line mx-auto mb-10 w-24" />
             <h2 className="font-display text-3xl font-semibold text-foreground sm:text-4xl">
-              適正単価は、
+              収入を上げるなら、
               <br />
-              データで決める時代。
+              次の一手から始める。
             </h2>
             <p className="mx-auto mt-4 max-w-lg text-muted">
-              感覚ではなく、市場データに基づいた単価設定。
-              診断結果から、次に取るべき行動までつながります。
+              相場を知るだけで終わらせない。診断結果から、今のあなたに合う行動までつなげます。
             </p>
             <a
               href="#diagnosis"
