@@ -74,6 +74,7 @@ export function Calculator() {
   const [isPremiumPurchaseOpen, setIsPremiumPurchaseOpen] = useState(false);
   const [premiumPurchaseSource, setPremiumPurchaseSource] = useState("unknown");
   const [isPdfExporting, setIsPdfExporting] = useState(false);
+  const [showFullDiagnosis, setShowFullDiagnosis] = useState(false);
   const [isPdfEmailModalOpen, setIsPdfEmailModalOpen] = useState(false);
   const diagnosisStartedRef = useRef(false);
   const diagnosisCompleteTrackedRef = useRef(false);
@@ -517,6 +518,19 @@ export function Calculator() {
                   }
                 />
 
+                <div className="flex justify-center py-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowFullDiagnosis((open) => !open)}
+                    className="text-sm font-medium text-amber-700 underline underline-offset-4 hover:text-amber-800"
+                  >
+                    {showFullDiagnosis ? "\u8A73\u3057\u3044\u5E02\u5834\u30C7\u30FC\u30BF\u3092\u9589\u3058\u308B" : "\u8A73\u3057\u3044\u5E02\u5834\u30C7\u30FC\u30BF\u3092\u898B\u308B"}
+                  </button>
+                </div>
+
+                {showFullDiagnosis && (
+                  <>
+
                 {/* 2. 市場レンジ・上位25%・上位10% */}
                 <div className="space-y-3">
                   <p className="text-xs font-medium text-muted">
@@ -691,6 +705,8 @@ export function Calculator() {
                 </div>
 
                 <AnnualRevenueSimulation rows={annualSimulationRows} />
+                  </>
+                )}
               </>
             )}
 
