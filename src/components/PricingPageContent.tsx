@@ -123,7 +123,7 @@ export function PricingPageContent() {
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
             まずは無料診断で市場との差を把握。
             <br className="hidden sm:block" />
-            交渉まで本気で準備するなら Premium へ。
+            単価を上げる準備までするなら Premium へ。
           </p>
         </div>
       </section>
@@ -189,8 +189,8 @@ export function PricingPageContent() {
               <ul className="mt-6 space-y-2">
                 {[
                   "詳細レポート全文",
-                  "交渉文全文・3パターン",
-                  "断り対応文",
+                  "単価交渉文・応募文",
+                  "職務経歴書・面談対策",
                   "コピー・編集・履歴保存",
                 ].map((item) => (
                   <li

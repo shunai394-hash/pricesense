@@ -4,13 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnnualRevenueSimulation } from "@/components/AnnualRevenueSimulation";
 import { CategorySearch } from "@/components/CategorySearch";
 import { DiagnosisActionBar } from "@/components/DiagnosisActionBar";
+import { DiagnosisNextActions } from "@/components/DiagnosisNextActions";
 import { MoshimoAffiliateBanner } from "@/components/MoshimoAffiliateBanner";
 import { DiagnosisKeyMetrics } from "@/components/DiagnosisKeyMetrics";
 import { NegotiationModal } from "@/components/NegotiationModal";
 import { PdfEmailCaptureModal } from "@/components/PdfEmailCaptureModal";
 import { PremiumPreviewCard } from "@/components/PremiumPreviewCard";
 import { PremiumPurchaseModal } from "@/components/PremiumPurchaseModal";
-import { PremiumUpsellCard } from "@/components/PremiumUpsellCard";
 import { TrustSection } from "@/components/TrustSection";
 import type { JobCategory } from "@/data/types";
 import {
@@ -31,6 +31,8 @@ import {
   generateNegotiationPack,
   splitNegotiationPreview,
 } from "@/lib/negotiation";
+import { generateRateUpDocuments, type RateUpTab } from "@/lib/rateUpDocuments";
+import { getDiagnosisNextActions } from "@/lib/nextActions";
 import {
   exportDiagnosisPdf,
   exportDiagnosisPdfAsBase64,
@@ -68,6 +70,7 @@ export function Calculator() {
     JOB_CATEGORIES[0].marketRate
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [rateUpTab, setRateUpTab] = useState<RateUpTab>("negotiation");
   const [isPremiumPurchaseOpen, setIsPremiumPurchaseOpen] = useState(false);
   const [premiumPurchaseSource, setPremiumPurchaseSource] = useState("unknown");
   const [isPdfExporting, setIsPdfExporting] = useState(false);
@@ -101,8 +104,9 @@ export function Calculator() {
     }
   }, []);
 
-  const openNegotiationModal = useCallback((source: string) => {
-    trackEvent(ANALYTICS_EVENTS.negotiationOpen, { source });
+  const openNegotiationModal = useCallback((source: string, tab: RateUpTab = "negotiation") => {
+    trackEvent(ANALYTICS_EVENTS.negotiationOpen, { source, tab });
+    setRateUpTab(tab);
     setIsModalOpen(true);
   }, []);
 
@@ -205,6 +209,34 @@ export function Calculator() {
     ]
   );
 
+  const rateUpDocuments = useMemo(
+    () =>
+      generateRateUpDocuments({
+        category,
+        userRate: parsedRate || marketRate,
+        marketRate,
+        targetRate: effectiveTargetRate,
+        diagnosisLevel: diagnosis.level,
+      }),
+    [
+      category,
+      parsedRate,
+      marketRate,
+      effectiveTargetRate,
+      diagnosis.level,
+    ]
+  );
+
+  const nextActions = useMemo(
+    () =>
+      getDiagnosisNextActions({
+        diagnosis,
+        category,
+        annualOpportunity,
+      }),
+    [diagnosis, category, annualOpportunity]
+  );
+
   const pdfCompleteInsight = useMemo(
     () =>
       getPdfCompleteInsight(
@@ -226,7 +258,7 @@ export function Calculator() {
 
   const scrollToPremiumUpsell = useCallback(() => {
     document
-      .getElementById("premium-upsell")
+      .getElementById("premium-preview")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
@@ -346,8 +378,6 @@ export function Calculator() {
               </svg>
             </div>
           </div>
-
-          <TrustSection variant="compact" />
 
           <div className="grid gap-6 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
@@ -479,6 +509,13 @@ export function Calculator() {
                     </p>
                   </div>
                 )}
+
+                <DiagnosisNextActions
+                  actions={nextActions}
+                  onRaiseCurrent={() =>
+                    openNegotiationModal("next_action_raise_current")
+                  }
+                />
 
                 {/* 2. 市場レンジ・上位25%・上位10% */}
                 <div className="space-y-3">
@@ -668,11 +705,11 @@ export function Calculator() {
                   positionLabel={diagnosis.positionLabel}
                   targetRate={effectiveTargetRate}
                   diagnosisLevel={diagnosis.level}
+                  isPremium={isPremium}
+                  onOpenPremiumPurchase={() =>
+                    openPremiumPurchase("premium_preview_card")
+                  }
                 />
-
-                <PremiumUpsellCard diagnosisContext={leadDiagnosisContext} />
-
-                <MoshimoAffiliateBanner />
 
                 {/* 4. 交渉文生成 */}
                 <DiagnosisActionBar
@@ -682,6 +719,8 @@ export function Calculator() {
                   isDisabled={false}
                   ctaLabel={ctaLabel}
                 />
+
+                <MoshimoAffiliateBanner />
               </>
             )}
 
@@ -728,6 +767,8 @@ export function Calculator() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         negotiationPack={negotiationPack}
+        rateUpDocuments={rateUpDocuments}
+        initialTab={rateUpTab}
         isPremium={isPremium}
         userRate={parsedRate}
         targetRate={effectiveTargetRate}

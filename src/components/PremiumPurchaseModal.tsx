@@ -182,7 +182,7 @@ export function PremiumPurchaseModal({
             Premiumプラン
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            診断結果をもとに、単価改善の分析から交渉準備までをサポートします。
+            診断結果をもとに、単価改善の分析から交渉・応募・面談の準備までをサポートします。
           </p>
         </header>
 
@@ -301,6 +301,16 @@ export function PremiumPurchaseModal({
                 </p>
                 <p className="mt-2 text-xs leading-relaxed text-muted">
                   一度断られたあとも、関係性を保ちながら再交渉できる返答文を用意します。
+                </p>
+              </li>
+
+              <li className="rounded-xl border border-border/80 bg-surface/40 px-4 py-3">
+                <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <CheckIcon />
+                  4. 応募文・職務経歴書・面談対策
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-muted">
+                  診断結果に合わせた案件応募文、職務経歴書の改善点、単価面談の話法も利用できます。
                 </p>
               </li>
             </ol>

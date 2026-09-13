@@ -3,7 +3,7 @@ import Link from "next/link";
 import { LEGAL_LINKS } from "@/lib/legal";
 
 interface SiteHeaderProps {
-  active?: "home" | "pricing";
+  active?: "home" | "pricing" | "account";
 }
 
 export function SiteHeader({ active = "home" }: SiteHeaderProps) {
@@ -29,6 +29,16 @@ export function SiteHeader({ active = "home" }: SiteHeaderProps) {
             }`}
           >
             料金
+          </Link>
+          <Link
+            href="/account"
+            className={`text-sm transition-colors lg:hidden ${
+              active === "account"
+                ? "text-accent"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            マイページ
           </Link>
 
           <nav
@@ -60,6 +70,16 @@ export function SiteHeader({ active = "home" }: SiteHeaderProps) {
               }`}
             >
               料金
+            </Link>
+            <Link
+              href="/account"
+              className={`text-sm transition-colors ${
+                active === "account"
+                  ? "text-accent"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              マイページ
             </Link>
             {LEGAL_LINKS.map((link) => (
               <Link

@@ -18,9 +18,9 @@ const features = [
         />
       </svg>
     ),
-    title: "交渉文サンプル＋Premium全文",
+    title: "交渉文・応募文まで作れる",
     description:
-      "診断結果に基づく交渉文サンプルを無料で確認。Premiumで全文生成、3パターン、断り対応文、コピー・編集が可能。",
+      "診断結果に基づく交渉文サンプルを無料で確認。Premiumで全文、応募文、職務経歴書改善、面談対策まで利用できます。",
   },
   {
     highlighted: false,
@@ -95,10 +95,10 @@ export function Features() {
             PriceSenseの特徴
           </p>
           <h2 className="mt-3 font-display text-3xl font-semibold text-foreground sm:text-4xl">
-            診断から交渉まで、ひとつで完結
+            診断から、次の一手まで
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-sm text-muted">
-            相場を調べて終わりではなく、次のアクション——値上げ交渉——までサポートします。
+            相場を知るだけでなく、案件・転職・今の仕事での単価アップまでつながります。
           </p>
         </div>
 

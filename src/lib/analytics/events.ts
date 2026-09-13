@@ -7,6 +7,7 @@ export const ANALYTICS_EVENTS = {
   premiumPreviewClick: "premium_preview_click",
   premiumUpgradeClick: "premium_upgrade_click",
   premiumPurchaseClick: "premium_purchase_click",
+  nextActionClick: "next_action_click",
 } as const;
 
 export type AnalyticsEventName =

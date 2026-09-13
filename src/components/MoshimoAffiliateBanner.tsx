@@ -8,9 +8,12 @@ const AFFILIATE_IMPRESSION_URL =
 export function MoshimoAffiliateBanner() {
   return (
     <aside
-      className="relative mx-auto w-full max-w-[300px]"
+      className="relative mx-auto w-full max-w-[240px] opacity-75"
       aria-label="スポンサー広告"
     >
+      <p className="mb-2 text-center text-[10px] font-medium tracking-widest text-muted/70">
+        広告
+      </p>
       <a
         href={AFFILIATE_CLICK_URL}
         rel="nofollow"

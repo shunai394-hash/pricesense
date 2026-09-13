@@ -6,6 +6,7 @@ import {
   type DiagnosisLevel,
   type RateComparison,
 } from "@/lib/calculator";
+import { ANALYTICS_EVENTS, trackEvent } from "@/lib/analytics";
 import { getPremiumRateIncreaseAnalysis } from "@/lib/premiumInsight";
 import { getPremiumExperiencePositionAnalysis } from "@/lib/premiumPosition";
 import { getPremiumJobImprovementAnalysis } from "@/lib/premiumImprovement";
@@ -19,6 +20,8 @@ interface PremiumPreviewCardProps {
   positionLabel: string;
   targetRate: number;
   diagnosisLevel: DiagnosisLevel;
+  isPremium?: boolean;
+  onOpenPremiumPurchase: () => void;
 }
 
 function CheckIcon() {
@@ -88,6 +91,8 @@ export function PremiumPreviewCard({
   positionLabel,
   targetRate,
   diagnosisLevel,
+  isPremium = false,
+  onOpenPremiumPurchase,
 }: PremiumPreviewCardProps) {
   const rateIncreaseAnalysis = getPremiumRateIncreaseAnalysis({
     category,
@@ -139,7 +144,7 @@ export function PremiumPreviewCard({
         あなた専用の単価改善レポート
       </h3>
       <p className="mt-2 text-sm text-muted">
-        {category.label}の診断結果をもとに、無料版とプレミアム版の違いを確認できます。
+        {category.label}の診断結果をもとに、今の仕事で単価を上げるための文面を作れます。
       </p>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -195,17 +200,37 @@ export function PremiumPreviewCard({
               hiddenText={jobImprovementAnalysis.blurredText}
             />
             <PreviewBlock
-              label="交渉戦略"
+              label="単価交渉文・応募文・面談対策"
               visibleText={`目標単価 ${formatYen(targetRate)} への`}
-              hiddenText="段階的改定ステップとタイミング、想定される反論への対応案"
+              hiddenText="交渉文・案件応募文・職務経歴書の改善点・面談での伝え方"
             />
           </div>
         </div>
       </div>
 
-      <p className="mt-4 text-center text-xs text-muted/80">
-        ※ 表示は参考値です。プレミアム版は準備中です。
-      </p>
+      {!isPremium ? (
+        <div className="mt-5 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted">
+            月額1,480円（税込）· いつでも解約可能
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              trackEvent(ANALYTICS_EVENTS.premiumPreviewClick, {
+                source: "premium_preview_card",
+              });
+              onOpenPremiumPurchase();
+            }}
+            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-accent px-6 py-3 text-sm font-semibold text-background transition-all hover:bg-accent/90 sm:px-8"
+          >
+            Premiumで文面を利用する
+          </button>
+        </div>
+      ) : (
+        <p className="mt-4 text-center text-xs text-muted/80">
+          Premium利用中です。交渉文・応募文・職務経歴書・面談対策を全文利用できます。
+        </p>
+      )}
     </section>
   );
 }

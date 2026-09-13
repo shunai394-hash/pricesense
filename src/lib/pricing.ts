@@ -18,7 +18,7 @@ export const PRICING_PLANS = {
     priceLabel: `¥${PREMIUM_MONTHLY_PRICE.toLocaleString("ja-JP")}`,
     period: "/ 月",
     description:
-      "診断結果をもとに、詳細分析から交渉準備までをまとめてサポートします。",
+      "診断結果をもとに、単価交渉文・案件応募文・職務経歴書改善・面談対策までまとめて使えます。",
   },
 } as const;
 
@@ -75,6 +75,24 @@ export const PRICING_COMPARISON: PricingComparisonRow[] = [
     premium: true,
   },
   {
+    id: "application",
+    feature: "案件応募文の作成",
+    free: "冒頭のみ",
+    premium: "全文",
+  },
+  {
+    id: "resume",
+    feature: "職務経歴書の改善ポイント",
+    free: false,
+    premium: true,
+  },
+  {
+    id: "interview",
+    feature: "単価面談の話法",
+    free: false,
+    premium: true,
+  },
+  {
     id: "pdf_export",
     feature: "診断結果PDFの保存",
     free: "交渉文は冒頭のみ",
@@ -99,13 +117,13 @@ export const PRICING_FAQ = [
     id: "premium_value",
     question: "Premiumで追加される機能は何ですか？",
     answer:
-      "詳細レポートの全文、交渉文の全文生成（3パターン）、断り対応文、コピー・編集、PDFへの全文反映、履歴保存が利用できます。診断結果をそのまま交渉準備に活かせます。",
+      "詳細レポートの全文、単価交渉文（3パターン）、案件応募文、職務経歴書の改善ポイント、面談対策、断り対応文、コピー・編集、PDFへの全文反映、履歴保存が利用できます。診断結果をそのまま次の行動に使えます。",
   },
   {
     id: "cancel",
     question: "Premiumはいつでも解約できますか？",
     answer:
-      "はい。Stripeの顧客ポータルからいつでも解約できます。解約後も当該請求期間の終了まではPremium機能をご利用いただけます。",
+      "はい。マイページの現在のプランから、Stripeの顧客ポータルでいつでも解約できます。解約後も当該請求期間の終了まではPremium機能をご利用いただけます。",
   },
   {
     id: "payment",

@@ -92,8 +92,15 @@ function logStripeConfigDiagnostics(context: string): StripeConfigDiagnostics {
  * Returns validated Supabase credentials or null when missing/invalid.
  * Trims whitespace (common when pasting into Vercel env UI).
  */
+function readSupabaseUrl(): string {
+  return (
+    trimEnv(readEnv("SUPABASE_URL")) ||
+    trimEnv(readEnv("NEXT_PUBLIC_SUPABASE_URL"))
+  );
+}
+
 export function getSupabaseConfig(): SupabaseConfig | null {
-  const url = trimEnv(readEnv("SUPABASE_URL"));
+  const url = readSupabaseUrl();
   const serviceRoleKey = trimEnv(readEnv("SUPABASE_SERVICE_ROLE_KEY"));
 
   if (!url || !serviceRoleKey) {
@@ -128,7 +135,7 @@ export function isSupabaseConfigured(): boolean {
 }
 
 export function getSupabaseConfigError(): string | null {
-  const url = trimEnv(readEnv("SUPABASE_URL"));
+  const url = readSupabaseUrl();
   const serviceRoleKey = trimEnv(readEnv("SUPABASE_SERVICE_ROLE_KEY"));
 
   if (!url && !serviceRoleKey) {

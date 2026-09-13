@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { SubscriptionPortalLink } from "@/components/SubscriptionPortalLink";
 import { LEGAL_LINKS } from "@/lib/legal";
 
 export function SiteFooter() {
@@ -21,6 +20,12 @@ export function SiteFooter() {
             >
               料金
             </Link>
+            <Link
+              href="/account"
+              className="text-sm text-muted transition-colors hover:text-foreground"
+            >
+              マイページ
+            </Link>
           </div>
           <p className="text-center text-xs text-muted sm:text-right">
             本サービスの相場データは参考値です。個別の案件条件により異なります。
@@ -40,7 +45,6 @@ export function SiteFooter() {
               {link.label}
             </Link>
           ))}
-          <SubscriptionPortalLink />
         </nav>
       </div>
     </footer>

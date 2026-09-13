@@ -29,8 +29,8 @@ export default function Home() {
       <main id="main-content" className="relative z-10">
         <section className="px-6 pb-16 pt-16 sm:pb-24 sm:pt-20 lg:pt-24">
           <div className="mx-auto max-w-6xl">
-            <div className="grid items-start gap-12 lg:grid-cols-2 lg:items-start lg:gap-16">
-              <div className="max-w-xl lg:self-start">
+            <div className="grid items-start gap-12 lg:grid-cols-2 lg:gap-16">
+              <div className="max-w-xl lg:sticky lg:top-24 lg:self-start">
                 <p className="animate-fade-up text-xs font-medium tracking-widest text-accent">
                   フリーランス単価診断
                 </p>
@@ -42,12 +42,17 @@ export default function Home() {
                   取り逃していますか？
                 </h1>
 
+                <div className="animate-fade-up-delay-2 mt-6 space-y-2 text-sm text-foreground/90 sm:text-base">
+                  <p>自分の適正単価を知る。</p>
+                  <p className="text-muted">その次に、単価を上げるために何をすべきかまで分かる。</p>
+                </div>
+
                 <ul className="animate-fade-up-delay-2 mt-6 grid gap-2 sm:grid-cols-2">
                   {[
-                    "自分の単価が適正かわかる",
+                    "適正単価が30秒でわかる",
                     "市場平均との差がわかる",
-                    "年間で取り逃している金額がわかる",
-                    "交渉材料まで作れる",
+                    "案件・転職・交渉の次の一手がわかる",
+                    "交渉文まで作れる",
                   ].map((item) => (
                     <li
                       key={item}
@@ -97,12 +102,6 @@ export default function Home() {
                     登録不要 / {JOB_CATEGORY_COUNT}職種対応 / 市場相場と比較
                   </p>
                 </div>
-
-                <p className="animate-fade-up-delay-3 mt-6 text-base leading-relaxed text-muted sm:text-lg">
-                  職種と単価を入力するだけ。
-                  <br className="hidden sm:block" />
-                  市場比較から値上げ交渉文の生成まで、ワンストップで完結。
-                </p>
               </div>
 
               <div
@@ -117,13 +116,11 @@ export default function Home() {
 
         <TrustSection variant="section" />
 
-        <A8AdSection slot="afterTrust" />
-
         <div id="features" className="scroll-mt-24">
           <Features />
         </div>
 
-        <section className="relative px-6 pb-24 pt-8">
+        <section className="relative px-6 pb-16 pt-8">
           <div className="mx-auto max-w-3xl text-center">
             <div className="gold-line mx-auto mb-10 w-24" />
             <h2 className="font-display text-3xl font-semibold text-foreground sm:text-4xl">
@@ -133,7 +130,7 @@ export default function Home() {
             </h2>
             <p className="mx-auto mt-4 max-w-lg text-muted">
               感覚ではなく、市場データに基づいた単価設定。
-              診断結果をもとに、値上げ交渉文まで自動で作成します。
+              診断結果から、次に取るべき行動までつながります。
             </p>
             <a
               href="#diagnosis"
@@ -157,7 +154,7 @@ export default function Home() {
           </div>
         </section>
 
-        <A8AdSection slot="beforeFooter" />
+        <A8AdSection />
       </main>
 
       <SiteFooter />

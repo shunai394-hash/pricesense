@@ -8,13 +8,21 @@ import { formatYen } from "@/lib/calculator";
 import {
   splitNegotiationPreview,
   type NegotiationPack,
+  type NegotiationResult,
   type NegotiationVariantId,
 } from "@/lib/negotiation";
+import {
+  RATE_UP_TABS,
+  type RateUpDocuments,
+  type RateUpTab,
+} from "@/lib/rateUpDocuments";
 
 interface NegotiationModalProps {
   isOpen: boolean;
   onClose: () => void;
   negotiationPack: NegotiationPack;
+  rateUpDocuments: RateUpDocuments;
+  initialTab?: RateUpTab;
   isPremium?: boolean;
   userRate: number;
   targetRate: number;
@@ -47,6 +55,8 @@ export function NegotiationModal({
   isOpen,
   onClose,
   negotiationPack,
+  rateUpDocuments,
+  initialTab = "negotiation",
   isPremium = false,
   userRate,
   targetRate,
@@ -56,6 +66,7 @@ export function NegotiationModal({
   onOpenPremiumPurchase,
 }: NegotiationModalProps) {
   const [mounted, setMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState<RateUpTab>(initialTab);
   const [activeVariantId, setActiveVariantId] =
     useState<NegotiationVariantId>("formal");
   const [editedBody, setEditedBody] = useState(
@@ -73,9 +84,13 @@ export function NegotiationModal({
   );
 
   const activeResult = activeVariant.result;
+  const displayedResult: NegotiationResult =
+    activeTab === "negotiation"
+      ? activeResult
+      : rateUpDocuments[activeTab];
   const previewSplit = useMemo(
-    () => splitNegotiationPreview(activeResult.body),
-    [activeResult.body]
+    () => splitNegotiationPreview(displayedResult.body),
+    [displayedResult.body]
   );
   const rejectionPreview = useMemo(
     () => splitNegotiationPreview(negotiationPack.rejectionResponse),
@@ -87,10 +102,16 @@ export function NegotiationModal({
   }, []);
 
   useEffect(() => {
-    setEditedBody(activeResult.body);
-  }, [activeResult.body]);
+    if (isOpen) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
 
-  const fullText = `件名：${activeResult.subject}\n\n${editedBody}`;
+  useEffect(() => {
+    setEditedBody(displayedResult.body);
+  }, [displayedResult.body]);
+
+  const fullText = `件名：${displayedResult.subject}\n\n${editedBody}`;
 
   const handleCopy = useCallback(
     async (field: "subject" | "body" | "all") => {
@@ -98,7 +119,7 @@ export function NegotiationModal({
 
       const text =
         field === "subject"
-          ? activeResult.subject
+          ? displayedResult.subject
           : field === "body"
             ? editedBody
             : fullText;
@@ -119,7 +140,7 @@ export function NegotiationModal({
       setCopiedField(field);
       setTimeout(() => setCopiedField(null), 2000);
     },
-    [isPremium, activeResult.subject, editedBody, fullText]
+    [isPremium, displayedResult.subject, editedBody, fullText]
   );
 
   const handleOpenPremium = useCallback(
@@ -181,13 +202,14 @@ export function NegotiationModal({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium tracking-widest text-accent">
-                交渉文ジェネレーター
+                単価アップ支援
               </p>
               <h2
                 id="negotiation-modal-title"
                 className="mt-1 font-display text-xl font-semibold text-foreground sm:text-2xl"
               >
-                値上げ交渉文
+                {RATE_UP_TABS.find((tab) => tab.id === activeTab)?.label ??
+                  "値上げ交渉文"}
               </h2>
               {!isPremium && (
                 <p className="mt-1 text-xs text-muted">
@@ -240,6 +262,29 @@ export function NegotiationModal({
             </div>
           </div>
 
+          <div className="mb-5 flex flex-wrap gap-2" role="tablist" aria-label="単価アップ文面">
+            {RATE_UP_TABS.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    isActive
+                      ? "border-accent/40 bg-accent/15 text-accent"
+                      : "border-border text-muted hover:border-accent/30"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {activeTab === "negotiation" && (
           <div className="mb-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-xs font-medium text-muted">交渉文パターン</span>
@@ -276,6 +321,7 @@ export function NegotiationModal({
               })}
             </div>
           </div>
+          )}
 
           <div className="mb-4">
             <div className="mb-2 flex items-center justify-between">
@@ -296,7 +342,7 @@ export function NegotiationModal({
               }`}
               onCopy={!isPremium ? (e) => e.preventDefault() : undefined}
             >
-              {activeResult.subject}
+              {displayedResult.subject}
             </div>
           </div>
 
@@ -335,7 +381,7 @@ export function NegotiationModal({
                 {previewSplit.isTruncated && (
                   <span className="select-none blur-[3px]">
                     {"\n\n"}
-                    {activeResult.body.slice(previewSplit.preview.length)}
+                    {displayedResult.body.slice(previewSplit.preview.length)}
                   </span>
                 )}
                 <p className="mt-3 text-xs text-muted/80">
@@ -345,6 +391,7 @@ export function NegotiationModal({
             )}
           </div>
 
+          {activeTab === "negotiation" && (
           <div className="mb-5 rounded-xl border border-accent/20 bg-accent/5 px-4 py-3">
             <div className="mb-2 flex items-center gap-2">
               {!isPremium && <LockIcon className="h-4 w-4 text-accent/70" />}
@@ -366,11 +413,14 @@ export function NegotiationModal({
               </div>
             )}
           </div>
+          )}
 
           <div className="rounded-xl border border-border/80 bg-surface/60 px-4 py-3">
-            <p className="text-xs font-medium text-foreground/80">交渉のヒント</p>
+            <p className="text-xs font-medium text-foreground/80">
+              {activeTab === "negotiation" ? "交渉のヒント" : "使い方のヒント"}
+            </p>
             <ul className="mt-2 space-y-1.5">
-              {activeResult.tips.map((tip) => (
+              {displayedResult.tips.map((tip) => (
                 <li
                   key={tip}
                   className="flex items-start gap-2 text-xs text-muted"
