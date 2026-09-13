@@ -14,7 +14,16 @@ export const SALES_ACTION_OPERATIONS = [
 ] as const;
 
 export type SalesActionOperation = (typeof SALES_ACTION_OPERATIONS)[number];
-export type SalesActionResult = "executed" | "duplicate";
+export type SalesActionResult = "executed" | "duplicate" | "failed" | "cancelled";
+export type SalesActionStatus =
+  | "pending"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "skipped"
+  | "cancelled";
+export type SalesActorKind = "human" | "ai";
+export type ExternalDelivery = "none";
 
 export interface SalesActionEvent {
   id: string;
@@ -27,8 +36,17 @@ export interface SalesActionEvent {
   previousStatus: string | null;
   nextStatus: string | null;
   result: SalesActionResult;
+  status: SalesActionStatus;
   executedBy: string;
   executedAt: string;
+  completedAt: string | null;
+  createdAt: string;
+  error: string | null;
+  actorKind: SalesActorKind;
+  retryOf: string | null;
+  attempt: number;
+  externalDelivery: ExternalDelivery;
+  approvalRequired: boolean;
   reason: string | null;
   metadata: Record<string, unknown>;
   idempotencyKey: string;
@@ -44,8 +62,16 @@ export interface SalesActionEventDraft {
   previousStatus?: string | null;
   nextStatus?: string | null;
   result?: SalesActionResult;
+  status?: SalesActionStatus;
   executedBy?: string | null;
   executedAt?: string;
+  completedAt?: string | null;
+  error?: string | null;
+  actorKind?: SalesActorKind | null;
+  retryOf?: string | null;
+  attempt?: number;
+  externalDelivery?: ExternalDelivery | null;
+  approvalRequired?: boolean;
   reason?: string | null;
   metadata?: Record<string, unknown>;
   idempotencyKey?: string | null;
@@ -58,6 +84,7 @@ export interface SalesActivityCounts {
   stoppedToday: number;
   wonToday: number;
   lostToday: number;
+  failedToday: number;
 }
 
 export function isSalesActionOperation(
@@ -80,6 +107,63 @@ export function parseOptionalIdempotencyKey(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim().slice(0, 200);
   return trimmed.length > 0 ? trimmed : null;
+}
+
+export function statusFromResult(result: SalesActionResult): SalesActionStatus {
+  switch (result) {
+    case "duplicate":
+      return "skipped";
+    case "failed":
+      return "failed";
+    case "cancelled":
+      return "cancelled";
+    default:
+      return "succeeded";
+  }
+}
+
+export function resultFromStatus(status: SalesActionStatus): SalesActionResult {
+  switch (status) {
+    case "skipped":
+      return "duplicate";
+    case "failed":
+      return "failed";
+    case "cancelled":
+      return "cancelled";
+    default:
+      return "executed";
+  }
+}
+
+export function isSalesActionStatus(value: unknown): value is SalesActionStatus {
+  return (
+    value === "pending" ||
+    value === "running" ||
+    value === "succeeded" ||
+    value === "failed" ||
+    value === "skipped" ||
+    value === "cancelled"
+  );
+}
+
+export function blocksDuplicateExecution(status: SalesActionStatus): boolean {
+  return status === "succeeded" || status === "skipped" || status === "running";
+}
+
+export function canRetryAction(status: SalesActionStatus): boolean {
+  return status === "failed";
+}
+
+export function canCancelAction(status: SalesActionStatus): boolean {
+  return status === "failed" || status === "pending" || status === "running";
+}
+
+export function retryIdempotencyKey(baseKey: string, nextAttempt: number): string {
+  return `${baseKey}:retry:${nextAttempt}`.slice(0, 200);
+}
+
+export function normalizeActorKind(value: unknown): SalesActorKind {
+  return value === "ai" ? "ai" : "human";
 }
 
 export function buildIdempotencyKey(input: {
@@ -125,6 +209,12 @@ export function buildSalesActionEvent(
   now: Date = new Date()
 ): SalesActionEvent {
   const executedAt = draft.executedAt ?? now.toISOString();
+  const status =
+    draft.status ??
+    statusFromResult(draft.result ?? "executed");
+  const result = draft.result ?? resultFromStatus(status);
+  const terminal =
+    status === "pending" || status === "running" ? null : (draft.completedAt ?? executedAt);
   const idempotencyKey = buildIdempotencyKey({
     operation: draft.operation,
     previousStatus: draft.previousStatus,
@@ -152,9 +242,18 @@ export function buildSalesActionEvent(
     actionContent: draft.actionContent ?? null,
     previousStatus: draft.previousStatus ?? null,
     nextStatus: draft.nextStatus ?? null,
-    result: draft.result ?? "executed",
+    result,
+    status,
     executedBy: normalizeExecutedBy(draft.executedBy),
     executedAt,
+    completedAt: terminal,
+    createdAt: executedAt,
+    error: draft.error ?? null,
+    actorKind: normalizeActorKind(draft.actorKind),
+    retryOf: draft.retryOf ?? null,
+    attempt: typeof draft.attempt === "number" && draft.attempt > 0 ? draft.attempt : 1,
+    externalDelivery: "none",
+    approvalRequired: draft.approvalRequired === true,
     reason: draft.reason ?? null,
     metadata: draft.metadata ?? {},
     idempotencyKey,
@@ -181,7 +280,13 @@ export function resolveHistoryWrite(
   const event = buildSalesActionEvent(draftInput, now);
   const found = findDuplicateEvent(existing, event);
   if (found) {
-    return { event: { ...found, result: "duplicate" }, duplicate: true };
+    if (found.status === "failed" || found.status === "cancelled") {
+      return { event: found, duplicate: true };
+    }
+    return {
+      event: { ...found, result: "duplicate", status: "skipped" },
+      duplicate: true,
+    };
   }
   return { event, duplicate: false };
 }
@@ -213,7 +318,10 @@ export function isTimestampInUtcDay(
 
 export function countSalesActivity(input: {
   pending: number;
-  events: Array<Pick<SalesActionEvent, "operation" | "result" | "executedAt">>;
+  events: Array<
+    Pick<SalesActionEvent, "operation" | "result" | "executedAt"> &
+      Partial<Pick<SalesActionEvent, "status">>
+  >;
   now?: Date;
 }): SalesActivityCounts {
   const now = input.now ?? new Date();
@@ -221,12 +329,19 @@ export function countSalesActivity(input: {
     (event) =>
       event.result === "executed" && isTimestampInUtcDay(event.executedAt, now)
   );
+  const failedToday = input.events.filter(
+    (event) =>
+      (event.result === "failed" ||
+        ("status" in event && event.status === "failed")) &&
+      isTimestampInUtcDay(event.executedAt, now)
+  ).length;
   return {
     pending: input.pending,
     executedToday: today.length,
     stoppedToday: today.filter((event) => event.operation === "manual_stop").length,
     wonToday: today.filter((event) => event.operation === "won").length,
     lostToday: today.filter((event) => event.operation === "lost").length,
+    failedToday,
   };
 }
 
@@ -244,8 +359,17 @@ export function salesActionEventToRow(
     previous_status: event.previousStatus,
     next_status: event.nextStatus,
     result: event.result,
+    status: event.status,
     executed_by: event.executedBy,
     executed_at: event.executedAt,
+    completed_at: event.completedAt,
+    created_at: event.createdAt,
+    error: event.error,
+    actor_kind: event.actorKind,
+    retry_of: event.retryOf,
+    attempt: event.attempt,
+    external_delivery: event.externalDelivery,
+    approval_required: event.approvalRequired,
     reason: event.reason,
     metadata: event.metadata,
     idempotency_key: event.idempotencyKey,
@@ -259,7 +383,17 @@ export function parseSalesActionEventRow(row: unknown): SalesActionEvent | null 
     return null;
   }
   if (!isSalesActionOperation(value.operation)) return null;
-  const result = value.result === "duplicate" ? "duplicate" : "executed";
+  const result: SalesActionResult =
+    value.result === "duplicate"
+      ? "duplicate"
+      : value.result === "failed"
+        ? "failed"
+        : value.result === "cancelled"
+          ? "cancelled"
+          : "executed";
+  const status = isSalesActionStatus(value.status)
+    ? value.status
+    : statusFromResult(result);
   return {
     id: value.id,
     leadId: value.lead_id,
@@ -273,6 +407,7 @@ export function parseSalesActionEventRow(row: unknown): SalesActionEvent | null 
       typeof value.previous_status === "string" ? value.previous_status : null,
     nextStatus: typeof value.next_status === "string" ? value.next_status : null,
     result,
+    status,
     executedBy:
       typeof value.executed_by === "string" && value.executed_by.trim()
         ? value.executed_by
@@ -283,6 +418,27 @@ export function parseSalesActionEventRow(row: unknown): SalesActionEvent | null 
         : typeof value.created_at === "string"
           ? value.created_at
           : new Date().toISOString(),
+    createdAt:
+      typeof value.created_at === "string"
+        ? value.created_at
+        : typeof value.executed_at === "string"
+          ? value.executed_at
+          : new Date().toISOString(),
+    completedAt:
+      typeof value.completed_at === "string"
+        ? value.completed_at
+        : status === "pending" || status === "running"
+          ? null
+          : typeof value.executed_at === "string"
+            ? value.executed_at
+            : null,
+    error: typeof value.error === "string" ? value.error : null,
+    actorKind: value.actor_kind === "ai" ? "ai" : "human",
+    retryOf: typeof value.retry_of === "string" ? value.retry_of : null,
+    attempt:
+      typeof value.attempt === "number" && value.attempt > 0 ? value.attempt : 1,
+    externalDelivery: "none",
+    approvalRequired: value.approval_required === true,
     reason: typeof value.reason === "string" ? value.reason : null,
     metadata:
       value.metadata && typeof value.metadata === "object" && !Array.isArray(value.metadata)
@@ -320,10 +476,37 @@ export function apiSalesActionEvent(event: SalesActionEvent) {
     previousStatus: event.previousStatus,
     nextStatus: event.nextStatus,
     result: event.result,
+    status: event.status,
     executedBy: event.executedBy,
     executedAt: event.executedAt,
+    completedAt: event.completedAt,
+    createdAt: event.createdAt,
+    error: event.error,
+    idempotencyKey: event.idempotencyKey,
+    actorKind: event.actorKind,
+    retryOf: event.retryOf,
+    attempt: event.attempt,
+    externalDelivery: event.externalDelivery,
+    approvalRequired: event.approvalRequired,
     reason: event.reason,
     metadata: event.metadata,
+    audit: salesActionAuditTrail(event),
+  };
+}
+
+export function salesActionAuditTrail(event: SalesActionEvent) {
+  return {
+    judgment: event.reason ?? event.actionType,
+    selectedAction: event.operation,
+    approvalRequired: event.approvalRequired,
+    actorKind: event.actorKind,
+    executed: event.status === "succeeded" || event.status === "skipped",
+    status: event.status,
+    result: event.result,
+    error: event.error,
+    retried: Boolean(event.retryOf),
+    attempt: event.attempt,
+    externalDelivery: event.externalDelivery,
   };
 }
 

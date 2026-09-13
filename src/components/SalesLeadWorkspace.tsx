@@ -131,8 +131,14 @@ interface LeadDetailResponse {
     previousStatus: string | null;
     nextStatus: string | null;
     result: string;
+    status?: string;
     executedBy: string;
     executedAt: string;
+    error?: string | null;
+    actorKind?: string;
+    retryOf?: string | null;
+    attempt?: number;
+    idempotencyKey?: string;
     reason: string | null;
   }>;
 }
@@ -315,9 +321,12 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
         <p className="mt-2 text-sm text-muted">
           既存データのみ表示します。メール送信はしません。
         </p>
-        <p className="mt-3">
+        <p className="mt-3 flex flex-wrap gap-4">
           <Link href="/admin/sales" className="text-sm text-accent">
             ← 今日の営業一覧
+          </Link>
+          <Link href="/admin/ops" className="text-sm text-accent">
+            監査・復旧
           </Link>
         </p>
       </header>
@@ -780,11 +789,22 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
                     </p>
                     <p className="mt-1 text-sm">{event.actionContent || "—"}</p>
                     <p className="mt-1 text-xs text-muted">
-                      実行者: {event.executedBy} · 結果: {event.result}
+                      実行者: {event.executedBy}
+                      {event.actorKind ? ` (${event.actorKind})` : ""} · 結果:{" "}
+                      {event.result}
+                      {event.status ? ` · 状態: ${event.status}` : ""}
                       {event.previousStatus || event.nextStatus
                         ? ` · ${event.previousStatus ?? "—"} → ${event.nextStatus ?? "—"}`
                         : ""}
                     </p>
+                    {event.error ? (
+                      <p className="mt-1 text-xs text-red-200">失敗: {event.error}</p>
+                    ) : null}
+                    {event.idempotencyKey ? (
+                      <p className="mt-1 break-all text-xs text-muted">
+                        idempotency: {event.idempotencyKey}
+                      </p>
+                    ) : null}
                   </li>
                 ))}
               </ol>

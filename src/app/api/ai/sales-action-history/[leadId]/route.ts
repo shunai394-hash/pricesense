@@ -6,6 +6,7 @@ import {
   getSupabaseConfigError,
   isSupabaseConfigured,
 } from "@/lib/server/env";
+import { publicErrorMessage } from "@/lib/server/public-error";
 import { listSalesActionEventsForLead } from "@/lib/server/sales-action-events";
 
 export const runtime = "nodejs";
@@ -50,8 +51,7 @@ export async function GET(
       history: history.map(apiSalesActionEvent),
     });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to load action history";
+    const errorMessage = publicErrorMessage(error, "Failed to load action history");
     console.error("[ai/sales-action-history] GET failed:", errorMessage, error);
     return NextResponse.json(
       { success: false, error: errorMessage },

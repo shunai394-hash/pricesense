@@ -20,6 +20,7 @@ import {
   apiSalesActionEvent,
   recordSalesActionEvent,
 } from "@/lib/server/sales-action-events";
+import { publicErrorMessage } from "@/lib/server/public-error";
 import { getSupabaseAdmin } from "@/lib/server/supabase";
 
 export const runtime = "nodejs";
@@ -189,7 +190,12 @@ export async function POST(request: Request) {
       actionContent: currentAction?.nextAction ?? existing?.next_action ?? null,
       previousStatus,
       nextStatus: previousStatus,
+      result: "executed",
+      status: "succeeded",
       executedBy,
+      actorKind: "human",
+      externalDelivery: "none",
+      approvalRequired: false,
       reason: "manual_stop",
       metadata: {
         previousFollowupAt: existing?.next_followup_at ?? null,
@@ -212,8 +218,7 @@ export async function POST(request: Request) {
       history: apiSalesActionEvent(history.event),
     });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to stop deal follow-up";
+    const errorMessage = publicErrorMessage(error, "Failed to stop deal follow-up");
     console.error("[ai/deal-stop] POST failed:", errorMessage, error);
     return NextResponse.json(
       { success: false, error: errorMessage },

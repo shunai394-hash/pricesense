@@ -25,6 +25,7 @@ import {
   findLatestSalesActionEvent,
   recordSalesActionEvent,
 } from "@/lib/server/sales-action-events";
+import { publicErrorMessage } from "@/lib/server/public-error";
 import { getSupabaseAdmin } from "@/lib/server/supabase";
 
 export const runtime = "nodejs";
@@ -206,7 +207,11 @@ export async function POST(request: Request) {
       previousStatus: existing?.status ?? null,
       nextStatus: next.status,
       result: "executed",
+      status: "succeeded",
       executedBy,
+      actorKind: "human",
+      externalDelivery: "none",
+      approvalRequired: false,
       executedAt: nowIso,
       reason:
         next.status === "lost"
@@ -240,8 +245,7 @@ export async function POST(request: Request) {
       history: apiSalesActionEvent(history.event),
     });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to update deal status";
+    const errorMessage = publicErrorMessage(error, "Failed to update deal status");
     console.error("[ai/deal-status] POST failed:", errorMessage, error);
     return NextResponse.json(
       { success: false, error: errorMessage },

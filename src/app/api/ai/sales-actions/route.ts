@@ -19,6 +19,7 @@ import {
   isSupabaseConfigured,
 } from "@/lib/server/env";
 import { getSupabaseAdmin } from "@/lib/server/supabase";
+import { publicErrorMessage } from "@/lib/server/public-error";
 import { listSalesActionEventsInRange } from "@/lib/server/sales-action-events";
 
 export const runtime = "nodejs";
@@ -175,6 +176,7 @@ export async function GET(request: Request) {
       stoppedToday: 0,
       wonToday: 0,
       lostToday: 0,
+      failedToday: 0,
     };
     try {
       const bounds = utcDayBounds(now);
@@ -198,8 +200,7 @@ export async function GET(request: Request) {
       activity,
     });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to load sales actions";
+    const errorMessage = publicErrorMessage(error, "Failed to load sales actions");
     console.error("[ai/sales-actions] GET failed:", errorMessage, error);
     return NextResponse.json(
       { success: false, error: errorMessage },

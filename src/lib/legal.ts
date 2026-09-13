@@ -15,7 +15,7 @@ export const LEGAL_CONFIG = {
   phone:
     process.env.NEXT_PUBLIC_LEGAL_PHONE ??
     "（メールにてお問い合わせください）",
-  lastUpdated: "2026年7月12日",
+  lastUpdated: "2026年9月14日",
   premiumPrice: PREMIUM_MONTHLY_PRICE,
 } as const;
 

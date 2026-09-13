@@ -2,17 +2,23 @@
 import { POST as postDealFollowup } from "@/app/api/ai/deal-followup/route";
 import {
   buildIdempotencyKey,
-  isSalesActionOperation,
   normalizeExecutedBy,
   parseOptionalIdempotencyKey,
+  type SalesActionEventDraft,
 } from "@/lib/ai/sales-action-history";
 import { classifySalesAction, parseExistingDeal } from "@/lib/ai/sales-actions";
+import {
+  existingExecuteOutcome,
+  failedExecuteDraft,
+  succeededExecuteDraft,
+} from "@/lib/ai/sales-ops";
 import { parseOptionalLeadId } from "@/lib/sales/scoring";
 import { isAdminRequest } from "@/lib/server/admin";
 import {
   getSupabaseConfigError,
   isSupabaseConfigured,
 } from "@/lib/server/env";
+import { publicErrorMessage } from "@/lib/server/public-error";
 import {
   apiSalesActionEvent,
   findSalesActionEventByKey,
@@ -67,22 +73,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const operationRaw = body.operation ?? "action_executed";
+  const requestedOperation = body.operation ?? "action_executed";
   if (
-    operationRaw !== "followup_created" &&
-    operationRaw !== "action_executed"
+    requestedOperation !== "followup_created" &&
+    requestedOperation !== "action_executed"
   ) {
     return NextResponse.json(
       { success: false, error: "Invalid operation" },
       { status: 400 }
     );
   }
-  if (!isSalesActionOperation(operationRaw)) {
-    return NextResponse.json(
-      { success: false, error: "Invalid operation" },
-      { status: 400 }
-    );
-  }
+  const operation: "followup_created" | "action_executed" =
+    requestedOperation === "followup_created"
+      ? "followup_created"
+      : "action_executed";
 
   if (!isSupabaseConfigured()) {
     const configError = getSupabaseConfigError() ?? "Lead API is not configured";
@@ -132,7 +136,7 @@ export async function POST(request: Request) {
     });
 
     let sequenceNumber = 1;
-    if (existing && operationRaw === "followup_created") {
+    if (existing && operation === "followup_created") {
       const { data: lastEvent } = await supabase
         .from("deal_followup_events")
         .select("sequence_number")
@@ -148,7 +152,7 @@ export async function POST(request: Request) {
     const idempotencyKey =
       providedKey ??
       buildIdempotencyKey({
-        operation: operationRaw,
+        operation,
         previousStatus: existing?.status ?? null,
         nextStatus: existing?.status ?? null,
         actionType: currentAction?.actionType ?? null,
@@ -158,17 +162,56 @@ export async function POST(request: Request) {
 
     const existingHistory = await findSalesActionEventByKey(leadId, idempotencyKey);
     if (existingHistory) {
+      const outcome = existingExecuteOutcome(existingHistory);
+      if (outcome.kind === "failed_retryable") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: existingHistory.error ?? "Action previously failed",
+            retryable: true,
+            leadId,
+            dealId: existing?.id ?? null,
+            history: apiSalesActionEvent(existingHistory),
+          },
+          { status: 409 }
+        );
+      }
       return NextResponse.json({
         success: true,
         leadId,
         dealId: existing?.id ?? null,
         duplicate: true,
-        history: apiSalesActionEvent({ ...existingHistory, result: "duplicate" }),
+        history: apiSalesActionEvent({
+          ...existingHistory,
+          result: "duplicate",
+          status:
+            existingHistory.status === "cancelled"
+              ? "cancelled"
+              : "skipped",
+        }),
       });
     }
 
+    const historyDraft: SalesActionEventDraft = {
+      leadId,
+      dealId: existing?.id ?? null,
+      actionType: currentAction?.actionType ?? null,
+      priority: currentAction?.priority ?? null,
+      operation,
+      actionContent: currentAction?.nextAction ?? existing?.next_action ?? null,
+      previousStatus: existing?.status ?? null,
+      nextStatus: existing?.status ?? null,
+      executedBy,
+      actorKind: "human",
+      externalDelivery: "none",
+      approvalRequired: false,
+      reason: currentAction?.reason ?? null,
+      metadata: { sequenceNumber },
+      idempotencyKey,
+    };
+
     let followup: Record<string, unknown> | null = null;
-    if (operationRaw === "followup_created") {
+    if (operation === "followup_created") {
       const followupResponse = await postDealFollowup(
         new Request("http://localhost/api/ai/deal-followup", {
           method: "POST",
@@ -186,39 +229,43 @@ export async function POST(request: Request) {
       );
       followup = (await followupResponse.json()) as Record<string, unknown>;
       if (!followupResponse.ok || followup.success !== true) {
+        const followupError =
+          typeof followup.error === "string"
+            ? followup.error
+            : "Failed to create follow-up";
+        const failed = await recordSalesActionEvent(
+          failedExecuteDraft(historyDraft, publicErrorMessage(new Error(followupError), followupError))
+        );
         return NextResponse.json(
           {
             success: false,
-            error:
-              typeof followup.error === "string"
-                ? followup.error
-                : "Failed to create follow-up",
+            error: publicErrorMessage(
+              new Error(followupError),
+              "Failed to create follow-up"
+            ),
+            retryable: true,
+            leadId,
+            dealId: existing?.id ?? null,
+            history: apiSalesActionEvent(failed.event),
           },
-          { status: followupResponse.status }
+          { status: followupResponse.status >= 400 ? followupResponse.status : 500 }
         );
       }
     }
 
-    const history = await recordSalesActionEvent({
-      leadId,
-      dealId:
-        typeof followup?.dealId === "string"
-          ? followup.dealId
-          : (existing?.id ?? null),
-      actionType: currentAction?.actionType ?? null,
-      priority: currentAction?.priority ?? null,
-      operation: operationRaw,
-      actionContent: currentAction?.nextAction ?? existing?.next_action ?? null,
-      previousStatus: existing?.status ?? null,
-      nextStatus:
-        typeof followup?.status === "string"
-          ? followup.status
-          : (existing?.status ?? null),
-      executedBy,
-      reason: currentAction?.reason ?? null,
-      metadata: { sequenceNumber },
-      idempotencyKey,
-    });
+    const history = await recordSalesActionEvent(
+      succeededExecuteDraft({
+        ...historyDraft,
+        dealId:
+          typeof followup?.dealId === "string"
+            ? followup.dealId
+            : (existing?.id ?? null),
+        nextStatus:
+          typeof followup?.status === "string"
+            ? followup.status
+            : (existing?.status ?? null),
+      })
+    );
 
     return NextResponse.json({
       success: true,
@@ -243,8 +290,7 @@ export async function POST(request: Request) {
         typeof followup?.status === "string" ? followup.status : existing?.status,
     });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to execute sales action";
+    const errorMessage = publicErrorMessage(error, "Failed to execute sales action");
     console.error("[ai/sales-action-execute] POST failed:", errorMessage, error);
     return NextResponse.json(
       { success: false, error: errorMessage },

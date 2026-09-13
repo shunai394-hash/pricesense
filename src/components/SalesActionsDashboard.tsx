@@ -26,6 +26,7 @@ function emptyActivity(): SalesActivityCounts {
     stoppedToday: 0,
     wonToday: 0,
     lostToday: 0,
+    failedToday: 0,
   };
 }
 
@@ -120,6 +121,14 @@ export function SalesActionsDashboard() {
         <p className="mt-2 max-w-2xl text-sm text-muted">
           今日やるべき営業を優先度順に確認します。管理者トークン（ADMIN_TOKEN）が必要です。
         </p>
+        <nav className="mt-4 flex flex-wrap gap-4 text-sm">
+          <Link href="/admin/ops" className="text-accent">
+            監査・復旧
+          </Link>
+          <Link href="/admin/revops" className="text-accent">
+            RevOps
+          </Link>
+        </nav>
       </header>
 
       <form
@@ -175,12 +184,13 @@ export function SalesActionsDashboard() {
 
           <section>
             <h2 className="mb-4 font-display text-2xl">実行状況</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
               <KpiCard label="未処理Action" value={displayActivity.pending} />
               <KpiCard label="本日実行" value={displayActivity.executedToday} />
               <KpiCard label="停止" value={displayActivity.stoppedToday} />
               <KpiCard label="Won" value={displayActivity.wonToday} />
               <KpiCard label="Lost" value={displayActivity.lostToday} />
+              <KpiCard label="本日失敗" value={displayActivity.failedToday} />
             </div>
           </section>
 
