@@ -54,7 +54,7 @@ export function DiagnosisNextActions({
           : "案件・転職・今の仕事での交渉。状況に合うものから進められます。"}
       </p>
 
-      <ol className="mt-4 space-y-3">
+      <ol className="mt-4 grid gap-3 lg:grid-cols-3">
         {actions.map((action, index) => (
           <li
             key={action.id}
