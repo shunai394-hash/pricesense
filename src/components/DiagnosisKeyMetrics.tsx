@@ -53,7 +53,7 @@ export function DiagnosisKeyMetrics({
         診断結果
       </p>
 
-      <div className="grid gap-3 lg:grid-cols-3">
+      <div className="grid gap-3">
         <div className="rounded-xl border border-border bg-surface/60 p-4 sm:p-5">
           <p className="text-xs text-muted">1. 現在の単価</p>
           <p className="mt-1 text-2xl font-bold text-foreground sm:text-3xl">
