@@ -192,3 +192,78 @@ export function getStripeConfig(): { secretKey: string; priceId: string } | null
 export function getStripeConfigDiagnostics(): StripeConfigDiagnostics {
   return buildStripeConfigDiagnostics();
 }
+
+export interface CompatibleAiConfig {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+}
+
+/**
+ * Vendor-neutral OpenAI-compatible chat config.
+ * Server-only. Never expose these values to the client.
+ */
+export function getCompatibleAiConfig(): CompatibleAiConfig | null {
+  const apiKey =
+    trimEnv(readEnv("AI_API_KEY")) || trimEnv(readEnv("OPENAI_API_KEY"));
+
+  if (!apiKey) {
+    return null;
+  }
+
+  const baseUrl = (
+    trimEnv(readEnv("AI_BASE_URL")) ||
+    trimEnv(readEnv("OPENAI_BASE_URL")) ||
+    "https://api.openai.com/v1"
+  ).replace(/\/$/, "");
+
+  const model =
+    trimEnv(readEnv("AI_MODEL")) ||
+    trimEnv(readEnv("OPENAI_MODEL")) ||
+    "gpt-4o-mini";
+
+  return { apiKey, baseUrl, model };
+}
+
+export interface FollowupDelayHours {
+  followup1Hours: number;
+  followup2Hours: number;
+  followup3Hours: number;
+}
+
+function parseDelayHours(name: string, fallback: number): number {
+  const raw = trimEnv(readEnv(name));
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return fallback;
+  return parsed;
+}
+
+/** Hours until follow-up #1 / #2 / #3. Override with FOLLOWUP_*_DELAY_HOURS. */
+export function getFollowupDelayHours(): FollowupDelayHours {
+  return {
+    followup1Hours: parseDelayHours("FOLLOWUP_1_DELAY_HOURS", 24),
+    followup2Hours: parseDelayHours("FOLLOWUP_2_DELAY_HOURS", 72),
+    followup3Hours: parseDelayHours("FOLLOWUP_3_DELAY_HOURS", 168),
+  };
+}
+
+/** Deal-stage chase delays. Separate from lead FOLLOWUP_* hours. */
+export function getDealFollowupDelayHours(): FollowupDelayHours {
+  return {
+    followup1Hours: parseDelayHours("DEAL_FOLLOWUP_1_DELAY_HOURS", 24),
+    followup2Hours: parseDelayHours("DEAL_FOLLOWUP_2_DELAY_HOURS", 72),
+    followup3Hours: parseDelayHours("DEAL_FOLLOWUP_3_DELAY_HOURS", 168),
+  };
+}
+
+/**
+ * Shared admin gate for RevOps (and future admin APIs).
+ * There was no existing admin UI/auth in this repo; this follows the same
+ * server-only env-secret pattern as Stripe / Supabase / AI keys.
+ * Unset = fail closed (no admin data).
+ */
+export function getAdminToken(): string | null {
+  const token = trimEnv(readEnv("ADMIN_TOKEN"));
+  return token.length > 0 ? token : null;
+}
