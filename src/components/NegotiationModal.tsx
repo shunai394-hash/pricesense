@@ -5,8 +5,6 @@ import { createPortal } from "react-dom";
 import { ANALYTICS_EVENTS, trackEvent } from "@/lib/analytics";
 import { logLeadPipeline } from "@/lib/leads/debug";
 import { formatYen } from "@/lib/calculator";
-import { startPremiumCheckout } from "@/lib/premium/checkout";
-import { PREMIUM_MONTHLY_PRICE } from "@/lib/pricing";
 import {
   splitNegotiationPreview,
   type NegotiationPack,
@@ -32,9 +30,6 @@ interface NegotiationModalProps {
   onRequestPdfByEmail?: () => void;
   isPdfExporting?: boolean;
   onOpenPremiumPurchase: (source: string) => void;
-  onTargetRateChange?: (rate: number) => void;
-  targetRateMin?: number;
-  targetRateMax?: number;
 }
 
 function LockIcon({ className }: { className?: string }) {
@@ -68,9 +63,7 @@ export function NegotiationModal({
   annualUpgradeImpact,
   onRequestPdfByEmail,
   isPdfExporting = false,
-  onTargetRateChange,
-  targetRateMin,
-  targetRateMax,
+  onOpenPremiumPurchase,
 }: NegotiationModalProps) {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<RateUpTab>(initialTab);
@@ -82,8 +75,6 @@ export function NegotiationModal({
   const [copiedField, setCopiedField] = useState<"subject" | "body" | "all" | null>(
     null
   );
-  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
-  const [checkoutError, setCheckoutError] = useState("");
 
   const activeVariant = useMemo(
     () =>
@@ -153,24 +144,11 @@ export function NegotiationModal({
   );
 
   const handleOpenPremium = useCallback(
-    async (source: string) => {
+    (source: string) => {
       trackEvent(ANALYTICS_EVENTS.premiumUpgradeClick, { source });
-      setIsCheckoutLoading(true);
-      setCheckoutError("");
-
-      const result = await startPremiumCheckout(source);
-
-      if (result.url) {
-        window.location.href = result.url;
-        return;
-      }
-
-      setIsCheckoutLoading(false);
-      setCheckoutError(
-        result.error ?? "決済の開始に失敗しました。時間をおいて再度お試しください。"
-      );
+      onOpenPremiumPurchase(source);
     },
-    []
+    [onOpenPremiumPurchase]
   );
 
   useEffect(() => {
@@ -271,7 +249,7 @@ export function NegotiationModal({
               </p>
             </div>
             <div>
-              <p className="text-xs text-muted">希望する交渉単価</p>
+              <p className="text-xs text-muted">交渉目標単価</p>
               <p className="mt-0.5 text-sm font-semibold text-accent">
                 {formatYen(targetRate)}
               </p>
@@ -282,31 +260,6 @@ export function NegotiationModal({
                 +{formatYen(annualUpgradeImpact)}
               </p>
             </div>
-            {onTargetRateChange &&
-              targetRateMin != null &&
-              targetRateMax != null &&
-              targetRateMax > targetRateMin && (
-                <div className="sm:col-span-3">
-                  <label
-                    htmlFor="negotiation-target-rate"
-                    className="text-xs text-muted"
-                  >
-                    希望単価を調整すると、下の文面に反映されます
-                  </label>
-                  <input
-                    id="negotiation-target-rate"
-                    type="range"
-                    min={targetRateMin}
-                    max={targetRateMax}
-                    step={1000}
-                    value={Math.min(Math.max(targetRate, targetRateMin), targetRateMax)}
-                    onChange={(e) =>
-                      onTargetRateChange(parseInt(e.target.value, 10))
-                    }
-                    className="mt-2 w-full accent-accent"
-                  />
-                </div>
-              )}
           </div>
 
           <div className="mb-5 flex flex-wrap gap-2" role="tablist" aria-label="単価アップ文面">
@@ -350,12 +303,11 @@ export function NegotiationModal({
                     type="button"
                     onClick={() => {
                       if (isLocked) {
-                        void handleOpenPremium("negotiation_variant");
+                        handleOpenPremium("negotiation_variant");
                         return;
                       }
                       setActiveVariantId(variant.id);
                     }}
-                    disabled={isCheckoutLoading}
                     className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                       isActive
                         ? "border-accent/40 bg-accent/15 text-accent"
@@ -481,19 +433,14 @@ export function NegotiationModal({
           </div>
         </div>
 
-        <footer className="flex shrink-0 flex-col gap-3 border-t border-border px-6 py-5">
+        <footer className="flex shrink-0 flex-col gap-3 border-t border-border px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted">
             {isPremium
               ? "相場データに基づき自動生成 · 自由に編集してご利用ください"
-              : `全文の利用は月額¥${PREMIUM_MONTHLY_PRICE.toLocaleString("ja-JP")}（税込）· いつでも解約可能`}
+              : "無料版はサンプル表示のみ · Premiumで全文利用"}
           </p>
-          {checkoutError && (
-            <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-xs text-accent">
-              {checkoutError}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-3 sm:justify-end">
-            {isPremium && onRequestPdfByEmail && (
+          <div className="flex flex-wrap gap-3">
+            {onRequestPdfByEmail && (
               <button
                 type="button"
                 onClick={() => {
@@ -525,12 +472,9 @@ export function NegotiationModal({
               <button
                 type="button"
                 onClick={() => handleOpenPremium("negotiation_footer")}
-                disabled={isCheckoutLoading}
-                className="rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-background transition-all hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-background transition-all hover:bg-accent/90"
               >
-                {isCheckoutLoading
-                  ? "決済ページへ移動中..."
-                  : `¥${PREMIUM_MONTHLY_PRICE.toLocaleString("ja-JP")}/月で全文を使う`}
+                Premiumで全文を利用する
               </button>
             )}
           </div>

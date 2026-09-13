@@ -121,9 +121,9 @@ export function PricingPageContent() {
             料金プラン
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
-            まずは無料診断で市場との差と次の一手を把握。
+            まずは無料診断で市場との差を把握。
             <br className="hidden sm:block" />
-            今の案件で単価を上げるなら Premium。
+            単価を上げる準備までするなら Premium へ。
           </p>
         </div>
       </section>
@@ -144,7 +144,7 @@ export function PricingPageContent() {
             <ul className="mt-6 space-y-2">
               {[
                 "基本単価診断",
-                "市場平均との差と次の一手",
+                "市場平均との差",
                 "交渉文サンプル（冒頭）",
                 "PDF保存",
               ].map((item) => (
@@ -188,10 +188,10 @@ export function PricingPageContent() {
               </p>
               <ul className="mt-6 space-y-2">
                 {[
-                  "単価交渉文・応募文の全文",
-                  "職務経歴書改善・面談話法",
-                  "コピー・編集・PDF全文",
-                  "履歴保存は今後追加予定",
+                  "詳細レポート全文",
+                  "単価交渉文・応募文",
+                  "職務経歴書・面談対策",
+                  "コピー・編集・履歴保存",
                 ].map((item) => (
                   <li
                     key={item}

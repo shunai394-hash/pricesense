@@ -26,14 +26,13 @@ import {
   getProposedRate,
   getRateComparison,
   JOB_CATEGORIES,
-  MARKET_DATA_META,
 } from "@/lib/calculator";
 import {
   generateNegotiationPack,
   splitNegotiationPreview,
 } from "@/lib/negotiation";
 import { generateRateUpDocuments, type RateUpTab } from "@/lib/rateUpDocuments";
-import { getNextMovePlan } from "@/lib/nextActions";
+import { getDiagnosisNextActions } from "@/lib/nextActions";
 import {
   exportDiagnosisPdf,
   exportDiagnosisPdfAsBase64,
@@ -43,11 +42,6 @@ import {
   type LeadDiagnosisContext,
 } from "@/lib/leads";
 import { logLeadPipeline } from "@/lib/leads/debug";
-import { consumeResumeNegotiation } from "@/lib/premium/resume";
-import {
-  persistDiagnosisSession,
-  restoreDiagnosisSession,
-} from "@/lib/diagnosisSession";
 import { ANALYTICS_EVENTS, trackEvent } from "@/lib/analytics";
 import { usePremiumStatus } from "@/hooks/usePremiumStatus";
 
@@ -67,21 +61,22 @@ const urgencyStyles: Record<string, string> = {
 };
 
 export function Calculator() {
-  const { isPremium, isLoading: isPremiumLoading } = usePremiumStatus();
+  const { isPremium } = usePremiumStatus();
   const [categoryId, setCategoryId] = useState(JOB_CATEGORIES[0].id);
-  const [userRate, setUserRate] = useState("");
-  const [targetRate, setTargetRate] = useState(JOB_CATEGORIES[0].marketRate);
+  const [userRate, setUserRate] = useState<string>(
+    String(JOB_CATEGORIES[0].marketRate)
+  );
+  const [targetRate, setTargetRate] = useState<number>(
+    JOB_CATEGORIES[0].marketRate
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [rateUpTab, setRateUpTab] = useState<RateUpTab>("negotiation");
   const [isPremiumPurchaseOpen, setIsPremiumPurchaseOpen] = useState(false);
   const [premiumPurchaseSource, setPremiumPurchaseSource] = useState("unknown");
   const [isPdfExporting, setIsPdfExporting] = useState(false);
   const [isPdfEmailModalOpen, setIsPdfEmailModalOpen] = useState(false);
-  const [showFullDiagnosis, setShowFullDiagnosis] = useState(false);
-  const [sessionRestored, setSessionRestored] = useState(false);
   const diagnosisStartedRef = useRef(false);
-  const diagnosisCompleteKeyRef = useRef("");
-  const skipNextProposeRef = useRef(false);
+  const diagnosisCompleteTrackedRef = useRef(false);
 
   const markDiagnosisStarted = useCallback(
     (
@@ -151,70 +146,32 @@ export function Calculator() {
   );
 
   useEffect(() => {
-    const saved = restoreDiagnosisSession();
-    if (saved) {
-      skipNextProposeRef.current = true;
-      setCategoryId(saved.categoryId);
-      setUserRate(saved.userRate);
-      if (saved.targetRate > 0) setTargetRate(saved.targetRate);
-    }
-    setSessionRestored(true);
-  }, []);
-
-  useEffect(() => {
-    if (!sessionRestored || parsedRate < 1000) return;
-    persistDiagnosisSession({
-      categoryId,
-      userRate,
-      targetRate: effectiveTargetRate,
-    });
-  }, [sessionRestored, categoryId, userRate, effectiveTargetRate, parsedRate]);
-
-  useEffect(() => {
-    if (!sessionRestored) return;
-    if (skipNextProposeRef.current) {
-      skipNextProposeRef.current = false;
-      return;
-    }
     const proposed = getProposedRate(parsedRate || marketRate, marketRate);
     setTargetRate(proposed);
-  }, [categoryId, parsedRate, marketRate, sessionRestored]);
+  }, [categoryId, parsedRate, marketRate]);
 
   useEffect(() => {
-    if (!diagnosisStartedRef.current || parsedRate < 1000) return;
+    if (
+      !diagnosisStartedRef.current ||
+      parsedRate <= 0 ||
+      diagnosisCompleteTrackedRef.current
+    ) {
+      return;
+    }
 
-    const key = `${categoryId}:${parsedRate}`;
-    const timer = window.setTimeout(() => {
-      if (diagnosisCompleteKeyRef.current === key) return;
-      diagnosisCompleteKeyRef.current = key;
-      trackEvent(ANALYTICS_EVENTS.diagnosisComplete, {
-        category_id: categoryId,
-        user_rate: parsedRate,
-        diagnosis_level: diagnosis.level,
-        market_rate: marketRate,
-      });
-    }, 800);
-
-    return () => window.clearTimeout(timer);
+    diagnosisCompleteTrackedRef.current = true;
+    trackEvent(ANALYTICS_EVENTS.diagnosisComplete, {
+      category_id: categoryId,
+      user_rate: parsedRate,
+      diagnosis_level: diagnosis.level,
+      market_rate: marketRate,
+    });
   }, [parsedRate, categoryId, diagnosis.level, marketRate]);
-
-  useEffect(() => {
-    if (!sessionRestored || !isPremium || isPremiumLoading) return;
-    if (parsedRate < 1000) return;
-    if (!consumeResumeNegotiation()) return;
-    openNegotiationModal("checkout_success");
-  }, [
-    sessionRestored,
-    isPremium,
-    isPremiumLoading,
-    parsedRate,
-    openNegotiationModal,
-  ]);
 
   const handleCategorySelect = (newCategory: JobCategory) => {
     markDiagnosisStarted("category_select", newCategory.id);
     setCategoryId(newCategory.id);
-    setShowFullDiagnosis(false);
+    setUserRate(String(newCategory.avgRate));
   };
 
   const handleRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -270,9 +227,9 @@ export function Calculator() {
     ]
   );
 
-  const nextMovePlan = useMemo(
+  const nextActions = useMemo(
     () =>
-      getNextMovePlan({
+      getDiagnosisNextActions({
         diagnosis,
         category,
         annualOpportunity,
@@ -293,6 +250,18 @@ export function Calculator() {
 
   const ctaLabel = getNegotiationCtaLabel(diagnosis.negotiationUrgency);
 
+  const scrollToUpgradeProposal = useCallback(() => {
+    document
+      .getElementById("upgrade-proposal")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const scrollToPremiumUpsell = useCallback(() => {
+    document
+      .getElementById("premium-preview")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
   const handleOpenNegotiationAfterPdf = useCallback(() => {
     setIsPdfEmailModalOpen(false);
     openNegotiationModal("pdf_complete");
@@ -300,13 +269,8 @@ export function Calculator() {
 
   const handleViewPremiumAfterPdf = useCallback(() => {
     setIsPdfEmailModalOpen(false);
-    setShowFullDiagnosis(true);
-    window.setTimeout(() => {
-      document
-        .getElementById("premium-preview")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 80);
-  }, []);
+    scrollToPremiumUpsell();
+  }, [scrollToPremiumUpsell]);
 
   const buildPdfExportData = useCallback((): PdfExportData | null => {
     if (parsedRate <= 0) return null;
@@ -392,14 +356,11 @@ export function Calculator() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium tracking-widest text-accent">
-                STEP 1 · 無料診断
+                無料診断
               </p>
               <h2 className="mt-1 font-display text-2xl font-semibold text-foreground sm:text-3xl">
-                職種と単価を入力
+                単価診断
               </h2>
-              <p className="mt-2 text-sm text-muted">
-                診断は入口です。結果から、収入を上げる次の一手まで出します。
-              </p>
             </div>
             <div className="hidden sm:flex h-10 w-10 items-center justify-center rounded-full border border-accent/20 bg-accent/5">
               <svg
@@ -425,6 +386,46 @@ export function Calculator() {
                 onSelect={handleCategorySelect}
               />
               <p className="text-xs text-muted">{category.description}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {category.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-md border border-border/80 bg-surface/80 px-2 py-0.5 text-xs text-muted"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <p className="text-xs font-medium text-muted">市場単価（参考値）</p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[
+                  { label: "最低", value: category.minRate },
+                  { label: "平均", value: category.avgRate, highlight: true },
+                  { label: "上位25%", value: category.top25Rate },
+                  { label: "上位10%", value: category.top10Rate },
+                ].map((tier) => (
+                  <div
+                    key={tier.label}
+                    className={`rounded-lg border px-3 py-2 text-center ${
+                      tier.highlight
+                        ? "border-accent/30 bg-accent/5"
+                        : "border-border bg-surface/60"
+                    }`}
+                  >
+                    <p className="text-xs text-muted">{tier.label}</p>
+                    <p
+                      className={`mt-0.5 text-sm font-semibold ${
+                        tier.highlight ? "text-accent" : "text-foreground"
+                      }`}
+                    >
+                      {formatYen(tier.value)}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-2 sm:col-span-2">
@@ -454,7 +455,7 @@ export function Calculator() {
                 </span>
               </div>
               <p id="daily-rate-hint" className="text-xs text-muted">
-                いまの日単価を入力すると、市場との差と次の一手が表示されます。
+                {category.label}の市場平均: {formatYen(marketRate)}
               </p>
             </div>
           </div>
@@ -462,8 +463,9 @@ export function Calculator() {
           <div className="gold-line w-full" />
 
           <div className="space-y-6">
-            {parsedRate > 0 ? (
+            {parsedRate > 0 && (
               <>
+                {/* 1. 重要指標（Top 3） */}
                 <DiagnosisKeyMetrics
                   parsedRate={parsedRate}
                   marketRate={marketRate}
@@ -471,256 +473,288 @@ export function Calculator() {
                   annualOpportunity={annualOpportunity}
                   isBelowMarket={isBelowMarket}
                   isAboveMarket={isAboveMarket}
+                  onViewUpgradePotential={scrollToUpgradeProposal}
+                  onCreateNegotiation={() => openNegotiationModal("key_metrics")}
                 />
 
+                {/* 診断ラベル・サマリー */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <span
+                    className={`inline-flex rounded-full border px-3 py-1 text-sm font-medium ${diagnosisBadgeStyles[diagnosis.level]}`}
+                  >
+                    {diagnosis.label}
+                  </span>
+                  <span
+                    className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs ${urgencyStyles[diagnosis.negotiationUrgency]}`}
+                  >
+                    {diagnosis.negotiationUrgency === "high"
+                      ? "交渉優先度: 高"
+                      : diagnosis.negotiationUrgency === "medium"
+                        ? "交渉優先度: 中"
+                        : diagnosis.negotiationUrgency === "low"
+                          ? "交渉優先度: 低"
+                          : "交渉: 任意"}
+                  </span>
+                </div>
+                <p className="text-sm leading-relaxed text-muted">
+                  {diagnosis.summary}
+                </p>
+                {diagnosis.actionMessage && (
+                  <div className="rounded-xl border border-accent/20 bg-accent/5 px-4 py-3">
+                    <p className="text-xs font-medium text-accent">
+                      次のアクション
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+                      {diagnosis.actionMessage}
+                    </p>
+                  </div>
+                )}
+
                 <DiagnosisNextActions
-                  plan={nextMovePlan}
-                  categoryId={category.id}
-                  diagnosisLevel={diagnosis.level}
+                  actions={nextActions}
                   onRaiseCurrent={() =>
                     openNegotiationModal("next_action_raise_current")
                   }
                 />
 
+                {/* 2. 市場レンジ・上位25%・上位10% */}
+                <div className="space-y-3">
+                  <p className="text-xs font-medium text-muted">
+                    市場相場の詳細
+                  </p>
+
+                  <div className="rounded-xl border border-border bg-surface/60 p-4">
+                    <p className="text-sm text-muted">市場レンジ（最低〜上位10%）</p>
+                    <p className="mt-1 text-xl font-semibold text-foreground">
+                      {formatYen(category.minRate)} 〜{" "}
+                      {formatYen(category.top10Rate)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                      {category.marketTrend}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-border bg-surface/60 p-4 text-center">
+                      <p className="text-xs text-muted">上位25%</p>
+                      <p className="mt-1 text-lg font-semibold text-foreground">
+                        {formatYen(category.top25Rate)}
+                      </p>
+                      <p className="mt-1 text-xs text-muted">
+                        平均比{" "}
+                        {parsedRate < category.top25Rate
+                          ? `+${formatYen(category.top25Rate - parsedRate)}/日`
+                          : "到達済み"}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-accent/25 bg-accent/5 p-4 text-center">
+                      <p className="text-xs text-muted">上位10%</p>
+                      <p className="mt-1 text-lg font-semibold text-accent">
+                        {formatYen(category.top10Rate)}
+                      </p>
+                      <p className="mt-1 text-xs text-muted">
+                        平均比{" "}
+                        {parsedRate < category.top10Rate
+                          ? `+${formatYen(category.top10Rate - parsedRate)}/日`
+                          : "到達済み"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-border/80 bg-surface/40 px-4 py-3">
+                    <div>
+                      <p className="text-xs text-muted">市場内ポジション</p>
+                      <p className="mt-0.5 text-base font-medium text-accent">
+                        {diagnosis.positionLabel}
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted">
+                      4段階相場データに基づく推定値
+                    </p>
+                  </div>
+
+                  <TrustSection variant="banner" />
+
+                  <div className="space-y-5 rounded-xl border border-border bg-surface/40 p-4">
+                    <div>
+                      <div className="mb-2 flex justify-between text-xs text-muted">
+                        <span>あなた {formatYen(parsedRate)}</span>
+                        <span>市場平均 {formatYen(marketRate)}</span>
+                      </div>
+                      <div className="relative h-3 overflow-hidden rounded-full bg-border">
+                        <div
+                          className={`absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out ${
+                            isBelowMarket
+                              ? "bg-gradient-to-r from-accent/60 to-accent"
+                              : isAboveMarket
+                                ? "bg-gradient-to-r from-emerald-500/60 to-emerald-400"
+                                : "bg-gradient-to-r from-foreground/30 to-foreground/50"
+                          }`}
+                          style={{ width: `${barWidths.userWidth}%` }}
+                        />
+                        <div
+                          className="absolute inset-y-0 w-0.5 bg-foreground/50 transition-all duration-700"
+                          style={{
+                            left: `${barWidths.marketMarker}%`,
+                            transform: "translateX(-50%)",
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="mb-2 flex justify-between text-xs text-muted">
+                        <span>{formatYen(category.minRate)}</span>
+                        <span>市場レンジ内の位置</span>
+                        <span>{formatYen(category.top10Rate)}</span>
+                      </div>
+                      <div className="relative h-3 overflow-hidden rounded-full bg-border">
+                        <div
+                          className="absolute inset-y-0 rounded-full bg-foreground/5"
+                          style={{ left: "0%", right: "0%" }}
+                        />
+                        <div
+                          className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-accent bg-accent/80 transition-all duration-700"
+                          style={{ left: `${rangePosition}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. 単価アップ提案 */}
+                <div
+                  id="upgrade-proposal"
+                  className="scroll-mt-24 rounded-xl border border-accent/25 bg-accent/5 p-5"
+                >
+                  <div className="flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        単価アップ提案
+                      </p>
+                      <p className="mt-1 text-xs text-muted">
+                        交渉目標単価を設定すると、年間増収と交渉文に反映されます
+                      </p>
+                    </div>
+                    <p className="text-2xl font-bold text-accent">
+                      {formatYen(effectiveTargetRate)}
+                    </p>
+                  </div>
+
+                  <input
+                    type="range"
+                    min={parsedRate + 1000}
+                    max={Math.max(
+                      category.top10Rate,
+                      defaultProposedRate + 10000
+                    )}
+                    step={1000}
+                    value={effectiveTargetRate}
+                    onChange={handleTargetRateChange}
+                    aria-label="交渉目標単価"
+                    aria-valuemin={parsedRate + 1000}
+                    aria-valuemax={Math.max(
+                      category.top10Rate,
+                      defaultProposedRate + 10000
+                    )}
+                    aria-valuenow={effectiveTargetRate}
+                    aria-valuetext={formatYen(effectiveTargetRate)}
+                    className="mt-4 w-full accent-accent"
+                  />
+
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+                    <span>現在 {formatYen(parsedRate)}</span>
+                    <span>
+                      改定後の年間増収（推定）:{" "}
+                      <span className="font-medium text-emerald-400">
+                        +{formatYen(annualUpgradeImpact)}
+                      </span>
+                    </span>
+                    <span>
+                      上限{" "}
+                      {formatYen(
+                        Math.max(
+                          category.top10Rate,
+                          defaultProposedRate + 10000
+                        )
+                      )}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setTargetRate(defaultProposedRate)}
+                    className="mt-3 text-xs text-accent hover:text-accent/80"
+                  >
+                    おすすめ目標（{formatYen(defaultProposedRate)}）に戻す
+                  </button>
+                </div>
+
+                <AnnualRevenueSimulation rows={annualSimulationRows} />
+              </>
+            )}
+
+            {parsedRate > 0 && (
+              <>
                 <PremiumPreviewCard
+                  category={category}
+                  userRate={parsedRate}
+                  marketRate={marketRate}
+                  comparison={comparison}
+                  annualOpportunity={annualOpportunity}
+                  positionLabel={diagnosis.positionLabel}
+                  targetRate={effectiveTargetRate}
+                  diagnosisLevel={diagnosis.level}
                   isPremium={isPremium}
                   onOpenPremiumPurchase={() =>
                     openPremiumPurchase("premium_preview_card")
                   }
                 />
 
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setShowFullDiagnosis((open) => !open)}
-                    className="text-sm text-muted underline-offset-4 hover:text-foreground hover:underline"
-                    aria-expanded={showFullDiagnosis}
-                  >
-                    {showFullDiagnosis
-                      ? "詳しい市場データを閉じる"
-                      : "詳しい市場データを見る"}
-                  </button>
-                </div>
-
-                {showFullDiagnosis && (
-                  <>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span
-                        className={`inline-flex rounded-full border px-3 py-1 text-sm font-medium ${diagnosisBadgeStyles[diagnosis.level]}`}
-                      >
-                        {diagnosis.label}
-                      </span>
-                      <span
-                        className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs ${urgencyStyles[diagnosis.negotiationUrgency]}`}
-                      >
-                        {diagnosis.negotiationUrgency === "high"
-                          ? "交渉優先度: 高"
-                          : diagnosis.negotiationUrgency === "medium"
-                            ? "交渉優先度: 中"
-                            : diagnosis.negotiationUrgency === "low"
-                              ? "交渉優先度: 低"
-                              : "交渉: 任意"}
-                      </span>
-                    </div>
-                    <p className="text-sm leading-relaxed text-muted">
-                      {diagnosis.summary}
-                    </p>
-
-                    <div className="space-y-3">
-                      <p className="text-xs font-medium text-muted">
-                        市場相場の詳細
-                      </p>
-
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                        {[
-                          { label: "最低", value: category.minRate },
-                          { label: "平均", value: category.avgRate, highlight: true },
-                          { label: "上位25%", value: category.top25Rate },
-                          { label: "上位10%", value: category.top10Rate },
-                        ].map((tier) => (
-                          <div
-                            key={tier.label}
-                            className={`rounded-lg border px-3 py-2 text-center ${
-                              tier.highlight
-                                ? "border-accent/30 bg-accent/5"
-                                : "border-border bg-surface/60"
-                            }`}
-                          >
-                            <p className="text-xs text-muted">{tier.label}</p>
-                            <p
-                              className={`mt-0.5 text-sm font-semibold ${
-                                tier.highlight ? "text-accent" : "text-foreground"
-                              }`}
-                            >
-                              {formatYen(tier.value)}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="rounded-xl border border-border bg-surface/60 p-4">
-                        <p className="text-sm text-muted">市場レンジ（最低〜上位10%）</p>
-                        <p className="mt-1 text-xl font-semibold text-foreground">
-                          {formatYen(category.minRate)} 〜{" "}
-                          {formatYen(category.top10Rate)}
-                        </p>
-                        <p className="mt-1 text-xs text-muted">
-                          {category.marketTrend}
-                        </p>
-                      </div>
-
-                      <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-border/80 bg-surface/40 px-4 py-3">
-                        <div>
-                          <p className="text-xs text-muted">市場内ポジション</p>
-                          <p className="mt-0.5 text-base font-medium text-accent">
-                            {diagnosis.positionLabel}
-                          </p>
-                        </div>
-                        <p className="text-xs text-muted">
-                          4段階相場データに基づく推定値
-                        </p>
-                      </div>
-
-                      <TrustSection variant="banner" />
-
-                      <div className="space-y-5 rounded-xl border border-border bg-surface/40 p-4">
-                        <div>
-                          <div className="mb-2 flex justify-between text-xs text-muted">
-                            <span>あなた {formatYen(parsedRate)}</span>
-                            <span>市場平均 {formatYen(marketRate)}</span>
-                          </div>
-                          <div className="relative h-3 overflow-hidden rounded-full bg-border">
-                            <div
-                              className={`absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out ${
-                                isBelowMarket
-                                  ? "bg-gradient-to-r from-accent/60 to-accent"
-                                  : isAboveMarket
-                                    ? "bg-gradient-to-r from-emerald-500/60 to-emerald-400"
-                                    : "bg-gradient-to-r from-foreground/30 to-foreground/50"
-                              }`}
-                              style={{ width: `${barWidths.userWidth}%` }}
-                            />
-                            <div
-                              className="absolute inset-y-0 w-0.5 bg-foreground/50 transition-all duration-700"
-                              style={{
-                                left: `${barWidths.marketMarker}%`,
-                                transform: "translateX(-50%)",
-                              }}
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="mb-2 flex justify-between text-xs text-muted">
-                            <span>{formatYen(category.minRate)}</span>
-                            <span>市場レンジ内の位置</span>
-                            <span>{formatYen(category.top10Rate)}</span>
-                          </div>
-                          <div className="relative h-3 overflow-hidden rounded-full bg-border">
-                            <div
-                              className="absolute inset-y-0 rounded-full bg-foreground/5"
-                              style={{ left: "0%", right: "0%" }}
-                            />
-                            <div
-                              className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-accent bg-accent/80 transition-all duration-700"
-                              style={{ left: `${rangePosition}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div
-                      id="upgrade-proposal"
-                      className="scroll-mt-24 rounded-xl border border-accent/25 bg-accent/5 p-5"
-                    >
-                      <div className="flex flex-wrap items-end justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-foreground">
-                            単価アップ提案
-                          </p>
-                          <p className="mt-1 text-xs text-muted">
-                            交渉目標単価を設定すると、年間増収と交渉文に反映されます
-                          </p>
-                        </div>
-                        <p className="text-2xl font-bold text-accent">
-                          {formatYen(effectiveTargetRate)}
-                        </p>
-                      </div>
-
-                      <input
-                        type="range"
-                        min={parsedRate + 1000}
-                        max={Math.max(
-                          category.top10Rate,
-                          defaultProposedRate + 10000
-                        )}
-                        step={1000}
-                        value={effectiveTargetRate}
-                        onChange={handleTargetRateChange}
-                        aria-label="交渉目標単価"
-                        aria-valuemin={parsedRate + 1000}
-                        aria-valuemax={Math.max(
-                          category.top10Rate,
-                          defaultProposedRate + 10000
-                        )}
-                        aria-valuenow={effectiveTargetRate}
-                        aria-valuetext={formatYen(effectiveTargetRate)}
-                        className="mt-4 w-full accent-accent"
-                      />
-
-                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
-                        <span>現在 {formatYen(parsedRate)}</span>
-                        <span>
-                          改定後の年間増収（推定）:{" "}
-                          <span className="font-medium text-emerald-400">
-                            +{formatYen(annualUpgradeImpact)}
-                          </span>
-                        </span>
-                        <span>
-                          上限{" "}
-                          {formatYen(
-                            Math.max(
-                              category.top10Rate,
-                              defaultProposedRate + 10000
-                            )
-                          )}
-                        </span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => setTargetRate(defaultProposedRate)}
-                        className="mt-3 text-xs text-accent hover:text-accent/80"
-                      >
-                        おすすめ目標（{formatYen(defaultProposedRate)}）に戻す
-                      </button>
-                    </div>
-
-                    <AnnualRevenueSimulation rows={annualSimulationRows} />
-
-                    <p className="text-xs leading-relaxed text-muted">
-                      {MARKET_DATA_META.methodology} {MARKET_DATA_META.workingDaysNote}。
-                      {MARKET_DATA_META.disclaimer}
-                    </p>
-
-                    <DiagnosisActionBar
-                      onRequestPdfByEmail={() => openPdfModal("action_bar")}
-                      onOpenNegotiation={() => openNegotiationModal("action_bar")}
-                      isPdfExporting={isPdfExporting}
-                      isDisabled={false}
-                      ctaLabel={ctaLabel}
-                    />
-                  </>
-                )}
+                {/* 4. 交渉文生成 */}
+                <DiagnosisActionBar
+                  onRequestPdfByEmail={() => openPdfModal("action_bar")}
+                  onOpenNegotiation={() => openNegotiationModal("action_bar")}
+                  isPdfExporting={isPdfExporting}
+                  isDisabled={false}
+                  ctaLabel={ctaLabel}
+                />
 
                 <MoshimoAffiliateBanner />
               </>
-            ) : (
-              <p className="text-sm text-muted">
-                職種を選び、現在の日単価を入力すると診断結果と次の一手が表示されます。
-              </p>
             )}
+
+            {parsedRate <= 0 && (
+              <>
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                  <div>
+                    <p className="text-sm text-muted">
+                      市場レンジ（最低〜上位10%）
+                    </p>
+                    <p className="mt-1 text-lg font-medium text-foreground/80">
+                      {formatYen(category.minRate)} 〜{" "}
+                      {formatYen(category.top10Rate)}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted">
+                      {category.marketTrend}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted">市場内ポジション</p>
+                    <p className="mt-1 text-lg font-medium text-accent">—</p>
+                  </div>
+                </div>
+
+                <DiagnosisActionBar
+                  onRequestPdfByEmail={() => openPdfModal("action_bar")}
+                  onOpenNegotiation={() => openNegotiationModal("action_bar")}
+                  isPdfExporting={isPdfExporting}
+                  isDisabled
+                  ctaLabel={ctaLabel}
+                />
+              </>
+            )}
+
           </div>
 
           <p className="text-center text-xs text-muted">
@@ -742,13 +776,6 @@ export function Calculator() {
         onRequestPdfByEmail={() => openPdfModal("negotiation_modal")}
         isPdfExporting={isPdfExporting}
         onOpenPremiumPurchase={openPremiumPurchase}
-        onTargetRateChange={setTargetRate}
-        targetRateMin={parsedRate > 0 ? parsedRate + 1000 : undefined}
-        targetRateMax={
-          parsedRate > 0
-            ? Math.max(category.top10Rate, defaultProposedRate + 10000)
-            : undefined
-        }
       />
 
       <PremiumPurchaseModal

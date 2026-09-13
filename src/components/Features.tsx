@@ -10,29 +10,6 @@ const features = [
         viewBox="0 0 24 24"
         stroke="currentColor"
         strokeWidth={1.5}
-        aria-hidden="true"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"
-        />
-      </svg>
-    ),
-    title: "次の一手まで出す",
-    description:
-      "市場より低ければ高単価案件、今の仕事を続けるなら単価交渉。診断結果から、収入を上げやすい行動を先に提示します。",
-  },
-  {
-    highlighted: false,
-    icon: (
-      <svg
-        className="h-6 w-6"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={1.5}
-        aria-hidden="true"
       >
         <path
           strokeLinecap="round"
@@ -41,9 +18,9 @@ const features = [
         />
       </svg>
     ),
-    title: "単価交渉を作れる",
+    title: "交渉文・応募文まで作れる",
     description:
-      "今の案件を続ける人向け。市場との差を根拠にした交渉文を作成。Premiumで全文、応募文、職務経歴書改善、面談対策まで利用できます。",
+      "診断結果に基づく交渉文サンプルを無料で確認。Premiumで全文、応募文、職務経歴書改善、面談対策まで利用できます。",
   },
   {
     highlighted: false,
@@ -54,7 +31,26 @@ const features = [
         viewBox="0 0 24 24"
         stroke="currentColor"
         strokeWidth={1.5}
-        aria-hidden="true"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"
+        />
+      </svg>
+    ),
+    title: "リアルタイム診断",
+    description: "入力と同時に市場データと比較。待ち時間ゼロ。",
+  },
+  {
+    highlighted: false,
+    icon: (
+      <svg
+        className="h-6 w-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={1.5}
       >
         <path
           strokeLinecap="round"
@@ -76,7 +72,6 @@ const features = [
         viewBox="0 0 24 24"
         stroke="currentColor"
         strokeWidth={1.5}
-        aria-hidden="true"
       >
         <path
           strokeLinecap="round"
@@ -87,7 +82,7 @@ const features = [
     ),
     title: "年間インパクト可視化",
     description:
-      "市場との差額を220稼働日で換算した参考値として表示。値上げの根拠が数字で伝わる。",
+      "市場との差額・改定後の年間増収をリアルタイム表示。値上げの根拠が数字で伝わる。",
   },
 ];
 
@@ -103,7 +98,7 @@ export function Features() {
             診断から、次の一手まで
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-sm text-muted">
-            相場を知るだけでなく、今やるべき一手までつながります。
+            相場を知るだけでなく、案件・転職・今の仕事での単価アップまでつながります。
           </p>
         </div>
 

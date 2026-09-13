@@ -10,9 +10,6 @@ import {
   getRateComparison,
   type DiagnosisLevel,
 } from "@/lib/calculator";
-import {
-  PREMIUM_UPCOMING_FEATURES,
-} from "@/lib/premium/features";
 import { PREMIUM_MONTHLY_PRICE } from "@/lib/pricing";
 
 const DIAGNOSIS_LEVEL_LABELS: Record<DiagnosisLevel, string> = {
@@ -185,8 +182,7 @@ export function PremiumPurchaseModal({
             Premiumプラン
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            診断結果をもとに、単価交渉文・応募文・職務経歴書改善・面談話法を作成できます。
-            文書の保存や定期チェックは今後追加予定です。
+            診断結果をもとに、単価改善の分析から交渉・応募・面談の準備までをサポートします。
           </p>
         </header>
 
@@ -311,23 +307,13 @@ export function PremiumPurchaseModal({
               <li className="rounded-xl border border-border/80 bg-surface/40 px-4 py-3">
                 <p className="flex items-center gap-2 text-sm font-medium text-foreground">
                   <CheckIcon />
-                  4. 応募文・職務経歴書・面談話法
+                  4. 応募文・職務経歴書・面談対策
                 </p>
                 <p className="mt-2 text-xs leading-relaxed text-muted">
                   診断結果に合わせた案件応募文、職務経歴書の改善点、単価面談の話法も利用できます。
                 </p>
               </li>
             </ol>
-            <p className="mt-4 text-xs font-medium text-foreground/80">
-              今後追加予定
-            </p>
-            <ul className="mt-2 space-y-1">
-              {PREMIUM_UPCOMING_FEATURES.map((feature) => (
-                <li key={feature} className="text-xs text-muted/80">
-                  {feature}
-                </li>
-              ))}
-            </ul>
           </div>
 
           <div className="mt-5 rounded-xl border border-accent/30 bg-accent/5 px-4 py-4 text-center">

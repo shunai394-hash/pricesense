@@ -1,6 +1,5 @@
 import { ANALYTICS_EVENTS, trackEvent } from "@/lib/analytics";
 import { getCachedLeadEmail } from "@/lib/leads";
-import { markResumeNegotiation } from "@/lib/premium/resume";
 
 export interface PremiumCheckoutResult {
   ok: boolean;
@@ -11,12 +10,7 @@ export interface PremiumCheckoutResult {
 export async function startPremiumCheckout(
   source: string
 ): Promise<PremiumCheckoutResult> {
-  trackEvent(ANALYTICS_EVENTS.checkoutStarted, { source });
   trackEvent(ANALYTICS_EVENTS.premiumPurchaseClick, { source });
-
-  if (source.includes("negotiation") || source.includes("raise_current")) {
-    markResumeNegotiation();
-  }
 
   try {
     const response = await fetch("/api/stripe/checkout", {

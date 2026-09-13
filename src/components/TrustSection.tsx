@@ -65,8 +65,7 @@ function TrustIcon({ children }: { children: React.ReactNode }) {
         viewBox="0 0 24 24"
         stroke="currentColor"
         strokeWidth={1.5}
-        aria-hidden="true"
-        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden
       >
         {children}
       </svg>
