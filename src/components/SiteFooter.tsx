@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LEGAL_LINKS } from "@/lib/legal";
+import { LEGAL_LINKS, LEGAL_POLICY_LINKS } from "@/lib/legal";
 
 export function SiteFooter() {
   return (
@@ -27,10 +27,10 @@ export function SiteFooter() {
               マイページ
             </Link>
             <Link
-              href="/admin"
+              href="/app"
               className="text-sm text-muted transition-colors hover:text-foreground"
             >
-              営業ワークスペース（管理者）
+              AI営業部
             </Link>
           </div>
           <p className="text-center text-xs text-muted sm:text-right">
@@ -43,6 +43,15 @@ export function SiteFooter() {
           className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-border/40 pt-6 sm:justify-start"
         >
           {LEGAL_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="text-xs text-muted transition-colors hover:text-foreground"
+            >
+              {link.label}
+            </Link>
+          ))}
+          {LEGAL_POLICY_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}

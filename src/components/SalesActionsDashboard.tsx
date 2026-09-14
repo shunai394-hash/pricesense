@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatAdminClientError } from "@/lib/admin-ui";
 import type { SalesAction, SalesActionCounts } from "@/lib/ai/sales-actions";
 import type { SalesActivityCounts } from "@/lib/ai/sales-action-history";
@@ -63,12 +64,17 @@ function KpiCard({
 }
 
 export function SalesActionsDashboard() {
+  const pathname = usePathname() || "";
+  const inApp = pathname.startsWith("/app");
+  const detailHref = (leadId: string) =>
+    inApp ? `/app/leads/${leadId}` : `/admin/sales/${leadId}`;
   const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actions, setActions] = useState<SalesAction[]>([]);
   const [counts, setCounts] = useState<SalesActionCounts | null>(null);
   const [activity, setActivity] = useState<SalesActivityCounts | null>(null);
+  const autoLoaded = useRef(false);
 
   useEffect(() => {
     const stored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
@@ -115,6 +121,12 @@ export function SalesActionsDashboard() {
     }
   }, [token]);
 
+  useEffect(() => {
+    if (!token || autoLoaded.current) return;
+    autoLoaded.current = true;
+    void load();
+  }, [load, token]);
+
   const now = new Date();
   const displayCounts = counts ?? emptyCounts();
   const displayActivity = activity ?? emptyActivity();
@@ -122,7 +134,9 @@ export function SalesActionsDashboard() {
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       <header className="mb-8 border-b border-border/60 pb-6">
-        <p className="text-xs uppercase tracking-[0.2em] text-accent">Admin</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-accent">
+          {inApp ? "AI営業部" : "Admin"}
+        </p>
         <h1 className="mt-2 font-display text-4xl text-foreground">
           営業アクションセンター
         </h1>
@@ -222,7 +236,7 @@ export function SalesActionsDashboard() {
                           ) : null}
                         </div>
                         <Link
-                          href={`/admin/sales/${action.leadId}`}
+                          href={detailHref(action.leadId)}
                           className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-background"
                         >
                           詳細を見る

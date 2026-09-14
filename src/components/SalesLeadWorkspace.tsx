@@ -1,10 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { formatAdminClientError } from "@/lib/admin-ui";
 import { DEAL_STATUSES, type DealStatus } from "@/lib/ai/deal";
 import { DEAL_LOST_REASONS, type SalesAction } from "@/lib/ai/sales-actions";
+import {
+  AiBadge,
+  AiDraftBadge,
+  Badge,
+  HumanBadge,
+  ReviewBadge,
+} from "@/components/ui/primitives";
+import {
+  TEMPERATURE_LABEL,
+  formatUtc,
+  leadTemperature,
+  lostReasonLabel,
+} from "@/lib/sales/workspace-ui";
 
 const TOKEN_STORAGE_KEY = "pricesense.adminToken";
 
@@ -152,10 +165,7 @@ function formatAmount(value: number | null): string {
 }
 
 function formatWhen(value: string | null | undefined): string {
-  if (!value) return "—";
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) return value;
-  return new Date(parsed).toISOString().replace("T", " ").slice(0, 16) + " UTC";
+  return formatUtc(value);
 }
 
 function Section({
@@ -205,7 +215,21 @@ function Field({
   );
 }
 
-export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
+export function SalesLeadWorkspace({
+  leadId,
+  backHref = "/admin/sales",
+  backLabel = "今日の営業一覧",
+  eyebrow = "Admin",
+  title = "営業アクション詳細",
+  hideChrome = false,
+}: {
+  leadId: string;
+  backHref?: string;
+  backLabel?: string;
+  eyebrow?: string;
+  title?: string;
+  hideChrome?: boolean;
+}) {
   const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
@@ -216,6 +240,7 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
   const [lostReason, setLostReason] = useState<(typeof DEAL_LOST_REASONS)[number]>(
     "unknown"
   );
+  const autoLoaded = useRef(false);
 
   useEffect(() => {
     const stored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
@@ -264,6 +289,12 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
       setLoading(false);
     }
   }, [leadId, token]);
+
+  useEffect(() => {
+    if (!token || autoLoaded.current) return;
+    autoLoaded.current = true;
+    void load();
+  }, [load, token]);
 
   async function postJson(url: string, body: Record<string, unknown>) {
     const response = await fetch(url, {
@@ -327,22 +358,30 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
   const proposal = data?.proposal;
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10">
+    <div className={hideChrome ? "mx-auto max-w-6xl px-4 pb-10 sm:px-6" : "mx-auto max-w-6xl px-6 py-10"}>
+      {hideChrome ? null : (
       <header className="mb-8 border-b border-border/60 pb-6">
-        <p className="text-xs uppercase tracking-[0.2em] text-accent">Admin</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-accent">{eyebrow}</p>
         <h1 className="mt-2 font-display text-4xl text-foreground">
-          営業アクション詳細
+          {title}
         </h1>
         <p className="mt-2 text-sm text-muted">
-          既存データのみ表示します。メール送信はしません。
+          既存データのみ表示します。メール送信はしません。契約・価格・Won / Lost は人間が確定します。
         </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <AiBadge />
+          <ReviewBadge />
+          <HumanBadge />
+        </div>
         <p className="mt-3">
-          <Link href="/admin/sales" className="text-sm text-accent">
-            ← 今日の営業一覧
+          <Link href={backHref} className="text-sm text-accent">
+            ← {backLabel}
           </Link>
         </p>
       </header>
+      )}
 
+      {hideChrome ? null : (
       <form
         className="mb-8 grid gap-3 rounded-xl border border-border/80 bg-surface/60 p-4 md:grid-cols-[1fr_auto]"
         onSubmit={(event) => {
@@ -351,7 +390,7 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
         }}
       >
         <label className="block text-sm">
-          <span className="mb-1 block text-muted">Admin token</span>
+          <span className="mb-1 block text-muted">管理者トークン</span>
           <input
             type="password"
             autoComplete="off"
@@ -370,6 +409,7 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
           </button>
         </div>
       </form>
+      )}
 
       {error ? (
         <p className="mb-6 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -383,11 +423,17 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
       ) : null}
 
       {!data?.success ? (
+        hideChrome ? null : (
         <p className="text-sm text-muted">トークンを入力して詳細を読み込んでください。</p>
+        )
       ) : (
         <div className="space-y-6">
           <section className="rounded-xl border border-border/80 bg-surface/70 p-4">
-            <h2 className="mb-3 font-display text-2xl">操作</h2>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <h2 className="font-display text-2xl">営業操作</h2>
+              <HumanBadge />
+              <Badge tone="muted">外部送信なし</Badge>
+            </div>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -530,6 +576,10 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
                   label="Market rate"
                   value={lead.marketRate == null ? "" : String(lead.marketRate)}
                 />
+                <Field
+                  label="Target rate"
+                  value={lead.targetRate == null ? "" : String(lead.targetRate)}
+                />
                 <Field label="Handed off" value={formatWhen(lead.handedOffAt)} />
                 <Field label="Created" value={formatWhen(lead.createdAt)} />
               </dl>
@@ -538,14 +588,24 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
 
           <p className="px-3 text-center text-xs text-muted">↓</p>
 
-          <Section title="Lead Score">
+          <Section title="AI Score">
+            <div className="mb-3 flex flex-wrap gap-2">
+              <AiBadge />
+              {(() => {
+                const band = leadTemperature({
+                  score: data.score?.score ?? null,
+                  escalationStatus: data.score?.escalationStatus ?? null,
+                });
+                return <Badge tone={band}>{TEMPERATURE_LABEL[band]}</Badge>;
+              })()}
+            </div>
             <dl className="grid gap-3 sm:grid-cols-3">
               <Field
                 label="Score"
                 value={data.score?.score == null ? "" : String(data.score.score)}
               />
               <Field label="Escalation" value={data.score?.escalationStatus} />
-              <Field label="Next action" value={data.score?.nextAction} />
+              <Field label="Next Action" value={data.score?.nextAction || data.action?.nextAction} />
             </dl>
           </Section>
 
@@ -562,7 +622,7 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
                     className="rounded-lg border border-border/60 p-3"
                   >
                     <p className="text-xs text-muted">
-                      {message.role === "user" ? "customer" : "assistant"} ·{" "}
+                      {message.role === "user" ? "顧客" : "AI"} ·{" "}
                       {formatWhen(message.createdAt)}
                     </p>
                     <p className="mt-1 whitespace-pre-wrap text-sm">
@@ -584,9 +644,9 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
                 {data.objections.map((item) => (
                   <li key={item.id} className="rounded-lg border border-border/60 p-3">
                     <p className="text-sm font-medium">{item.objectionType || "objection"}</p>
-                    <p className="mt-1 text-sm">{item.customerMessage || "—"}</p>
+                    <p className="mt-1 text-sm">顧客発言: {item.customerMessage || "—"}</p>
                     {item.responsePlay ? (
-                      <p className="mt-1 text-xs text-muted">{item.responsePlay}</p>
+                      <p className="mt-1 text-xs text-muted">response play: {item.responsePlay}</p>
                     ) : null}
                   </li>
                 ))}
@@ -597,6 +657,10 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
           <p className="px-3 text-center text-xs text-muted">↓</p>
 
           <Section title="Sales Brief">
+            <div className="mb-3 flex flex-wrap gap-2">
+              <AiDraftBadge />
+              <ReviewBadge />
+            </div>
             {!data.salesBrief ? (
               <Empty text="なし（再生成しません）" />
             ) : (
@@ -642,6 +706,9 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
           <p className="px-3 text-center text-xs text-muted">↓</p>
 
           <Section title="Meeting">
+            <div className="mb-3">
+              <AiDraftBadge />
+            </div>
             {!data.meeting ? (
               <Empty text="なし" />
             ) : (
@@ -671,6 +738,10 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
           <p className="px-3 text-center text-xs text-muted">↓</p>
 
           <Section title="Proposal">
+            <div className="mb-3 flex flex-wrap gap-2">
+              <AiDraftBadge />
+              <HumanBadge />
+            </div>
             {!proposal ? (
               <Empty text="なし" />
             ) : (
@@ -705,6 +776,10 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
           <p className="px-3 text-center text-xs text-muted">↓</p>
 
           <Section title="Quote">
+            <div className="mb-3 flex flex-wrap gap-2">
+              <AiDraftBadge />
+              <ReviewBadge />
+            </div>
             {!quote ? (
               <Empty text="なし" />
             ) : (
@@ -760,6 +835,9 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
           <p className="px-3 text-center text-xs text-muted">↓</p>
 
           <Section title="Deal">
+            <div className="mb-3">
+              <HumanBadge />
+            </div>
             {!data.deal ? (
               <Empty text="なし" />
             ) : (
@@ -781,7 +859,10 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
                   label="next_followup_at"
                   value={formatWhen(data.deal.nextFollowupAt)}
                 />
-                <Field label="lost_reason" value={data.deal.lostReason} />
+                <Field
+                  label="lost_reason"
+                  value={lostReasonLabel(data.deal.lostReason)}
+                />
               </dl>
             )}
           </Section>
@@ -825,7 +906,7 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
 
           <p className="px-3 text-center text-xs text-muted">↓</p>
 
-          <Section title="Follow-up History">
+          <Section title="Follow-up">
             {!data.followupHistory || data.followupHistory.length === 0 ? (
               <Empty text="なし" />
             ) : (

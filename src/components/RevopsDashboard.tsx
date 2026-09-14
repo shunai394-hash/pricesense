@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatAdminClientError } from "@/lib/admin-ui";
 import type {
   RevopsCurrencyValue,
@@ -67,6 +67,7 @@ export function RevopsDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<RevopsResponse | null>(null);
+  const autoLoaded = useRef(false);
 
   useEffect(() => {
     const stored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
@@ -113,6 +114,12 @@ export function RevopsDashboard() {
     }
   }, [from, to, token]);
 
+  useEffect(() => {
+    if (!token || autoLoaded.current) return;
+    autoLoaded.current = true;
+    void load();
+  }, [load, token]);
+
   const kpis = data?.kpis;
   const funnel = data?.funnel ?? [];
   const lossReasons = data?.lossReasons ?? [];
@@ -131,10 +138,10 @@ export function RevopsDashboard() {
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       <header className="mb-8 border-b border-border/60 pb-6">
-        <p className="text-xs uppercase tracking-[0.2em] text-accent">Admin</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-accent">AI営業部</p>
         <h1 className="mt-2 font-display text-4xl text-foreground">RevOps</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted">
-          AI営業部のリード〜成約を集計します。管理者トークン（ADMIN_TOKEN）が必要です。
+          実データベースのLead / Meeting / Proposal / Deal を集計します。架空のKPIは表示しません。
         </p>
       </header>
 

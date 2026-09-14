@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const SITE_NAME = "PriceSense";
-export const SITE_TAGLINE = "単価診断とAI営業オペレーション";
+export const SITE_TAGLINE = "単価診断とAI営業部";
 
 export const DEFAULT_TITLE = `${SITE_NAME} — ${SITE_TAGLINE}`;
 export const DEFAULT_DESCRIPTION =

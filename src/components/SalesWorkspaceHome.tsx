@@ -1,11 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatAdminClientError } from "@/lib/admin-ui";
 import type { RevopsKpis } from "@/lib/ai/revops";
 import type { SalesAction, SalesActionCounts } from "@/lib/ai/sales-actions";
 import type { SalesActivityCounts } from "@/lib/ai/sales-action-history";
+import {
+  AiBadge,
+  AiHumanFlow,
+  Badge,
+  HumanBadge,
+} from "@/components/ui/primitives";
+import { ACTION_TYPE_LABEL, leadDisplayName } from "@/lib/sales/workspace-ui";
 
 const TOKEN_STORAGE_KEY = "pricesense.adminToken";
 
@@ -67,10 +75,21 @@ function KpiCard({
 }
 
 function leadLabel(action: SalesAction): string {
-  return action.categoryName || action.email || action.leadId;
+  return leadDisplayName({
+    categoryName: action.categoryName,
+    email: action.email,
+    leadId: action.leadId,
+  });
 }
 
 export function SalesWorkspaceHome() {
+  const pathname = usePathname() || "";
+  const inApp = pathname.startsWith("/app");
+  const salesHref = inApp ? "/app/sales" : "/admin/sales";
+  const leadHref = (leadId: string) =>
+    inApp ? `/app/leads/${leadId}` : `/admin/sales/${leadId}`;
+  const revopsHref = inApp ? "/app/revops" : "/admin/revops";
+  const opsHref = "/admin/ops";
   const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +99,7 @@ export function SalesWorkspaceHome() {
   const [kpis, setKpis] = useState<RevopsKpis | null>(null);
   const [failed, setFailed] = useState<AuditEvent[]>([]);
   const [failedToday, setFailedToday] = useState(0);
+  const autoLoaded = useRef(false);
 
   useEffect(() => {
     const stored = sessionStorage.getItem(TOKEN_STORAGE_KEY);
@@ -165,7 +185,21 @@ export function SalesWorkspaceHome() {
     }
   }, [token]);
 
-  const todayActions = actions.slice(0, 5);
+  useEffect(() => {
+    if (!token || autoLoaded.current) return;
+    autoLoaded.current = true;
+    void load();
+  }, [load, token]);
+
+  const grouped = useMemo(
+    () => ({
+      P0: actions.filter((action) => action.priority === "P0"),
+      P1: actions.filter((action) => action.priority === "P1"),
+      P2: actions.filter((action) => action.priority === "P2"),
+      P3: actions.filter((action) => action.priority === "P3"),
+    }),
+    [actions]
+  );
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
@@ -182,6 +216,9 @@ export function SalesWorkspaceHome() {
           今日やるべき営業アクション、RevOps、監査情報をまとめて確認できます。
           AIは提案を支援し、重要な判断や外部への営業連絡は人が確認します。
         </p>
+        <div className="mt-4">
+          <AiHumanFlow />
+        </div>
       </header>
 
       <form
@@ -233,25 +270,25 @@ export function SalesWorkspaceHome() {
               <KpiCard
                 label="未処理アクション"
                 value={activity?.pending ?? counts.total}
-                href="/admin/sales"
+                href={salesHref}
               />
 
               <KpiCard
                 label="P0"
                 value={counts.P0}
-                href="/admin/sales"
+                href={salesHref}
               />
 
               <KpiCard
                 label="HOT Lead"
                 value={kpis?.hotLeads ?? "—"}
-                href="/admin/revops"
+                href={revopsHref}
               />
 
               <KpiCard
                 label="本日失敗"
                 value={activity?.failedToday ?? failedToday}
-                href="/admin/ops"
+                href={opsHref}
               />
             </div>
           </section>
@@ -261,17 +298,17 @@ export function SalesWorkspaceHome() {
 
             {kpis ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <KpiCard label="Lead" value={kpis.leads} href="/admin/revops" />
-                <KpiCard label="WARM" value={kpis.warmLeads} href="/admin/revops" />
-                <KpiCard label="商談" value={kpis.meetings} href="/admin/revops" />
-                <KpiCard label="提案" value={kpis.proposals} href="/admin/revops" />
-                <KpiCard label="Deal" value={kpis.deals} href="/admin/revops" />
-                <KpiCard label="Won" value={kpis.won} href="/admin/revops" />
-                <KpiCard label="交渉中" value={kpis.negotiating} href="/admin/sales" />
+                <KpiCard label="Lead" value={kpis.leads} href={revopsHref} />
+                <KpiCard label="WARM" value={kpis.warmLeads} href={revopsHref} />
+                <KpiCard label="商談" value={kpis.meetings} href={revopsHref} />
+                <KpiCard label="提案" value={kpis.proposals} href={revopsHref} />
+                <KpiCard label="Deal" value={kpis.deals} href={revopsHref} />
+                <KpiCard label="Won" value={kpis.won} href={revopsHref} />
+                <KpiCard label="交渉中" value={kpis.negotiating} href={salesHref} />
                 <KpiCard
                   label="Lead → Won"
                   value={`${kpis.conversionRates.leadToWon}%`}
-                  href="/admin/revops"
+                  href={revopsHref}
                 />
               </div>
             ) : (
@@ -283,52 +320,75 @@ export function SalesWorkspaceHome() {
 
           <section>
             <div className="mb-4 flex items-end justify-between gap-3">
-              <h2 className="font-display text-2xl">優先アクション</h2>
-
-              <Link href="/admin/sales" className="text-sm text-accent">
+              <div>
+                <h2 className="font-display text-2xl">今日やること</h2>
+                <p className="mt-1 text-xs text-muted">
+                  AIが優先度を提案し、人間が実行します。
+                </p>
+              </div>
+              <Link href={salesHref} className="text-sm text-accent">
                 すべて見る
               </Link>
             </div>
 
-            {todayActions.length === 0 ? (
+            {actions.length === 0 ? (
               <p className="rounded-lg border border-border/80 bg-surface/50 px-4 py-3 text-sm text-muted">
                 今日の対象はありません。新しいLeadが登録されると、ここに営業アクションが表示されます。
                 失敗した処理は
                 {" "}
-                <Link href="/admin/ops" className="text-accent">
+                <Link href={opsHref} className="text-accent">
                   監査・復旧
                 </Link>
                 から確認できます。
               </p>
             ) : (
-              <ul className="space-y-3">
-                {todayActions.map((action) => (
-                  <li key={action.leadId}>
-                    <article className="rounded-xl border border-border/80 bg-surface/70 p-4">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="text-xs uppercase tracking-wide text-accent">
-                            {action.priority} · {action.actionType}
-                          </p>
-
-                          <h3 className="mt-1 font-display text-xl text-foreground">
-                            {leadLabel(action)}
-                          </h3>
-
-                          <p className="mt-2 text-sm">{action.nextAction}</p>
-                        </div>
-
-                        <Link
-                          href={`/admin/sales/${action.leadId}`}
-                          className="min-h-11 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-background"
-                        >
-                          詳細
-                        </Link>
-                      </div>
-                    </article>
-                  </li>
+              <div className="space-y-6">
+                {(["P0", "P1", "P2", "P3"] as const).map((priority) => (
+                  <div key={priority}>
+                    <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
+                      <Badge tone={priority === "P0" ? "danger" : "accent"}>
+                        {priority}
+                      </Badge>
+                      <span className="text-muted">
+                        {grouped[priority].length}件
+                      </span>
+                    </h3>
+                    {grouped[priority].length === 0 ? (
+                      <p className="text-sm text-muted">対象なし</p>
+                    ) : (
+                      <ul className="space-y-3">
+                        {grouped[priority].map((action) => (
+                          <li key={action.leadId}>
+                            <article className="rounded-xl border border-border/80 bg-surface/70 p-4">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                  <div className="flex flex-wrap gap-2">
+                                    <AiBadge />
+                                    <HumanBadge />
+                                    <Badge tone="muted">
+                                      {ACTION_TYPE_LABEL[action.actionType]}
+                                    </Badge>
+                                  </div>
+                                  <h3 className="mt-2 font-display text-xl text-foreground">
+                                    {leadLabel(action)}
+                                  </h3>
+                                  <p className="mt-2 text-sm">{action.nextAction}</p>
+                                </div>
+                                <Link
+                                  href={leadHref(action.leadId)}
+                                  className="min-h-11 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-background"
+                                >
+                                  詳細
+                                </Link>
+                              </div>
+                            </article>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
           </section>
 
@@ -336,7 +396,7 @@ export function SalesWorkspaceHome() {
             <div className="mb-4 flex items-end justify-between gap-3">
               <h2 className="font-display text-2xl">失敗したアクション</h2>
 
-              <Link href="/admin/ops" className="text-sm text-accent">
+              <Link href={opsHref} className="text-sm text-accent">
                 監査・復旧
               </Link>
             </div>
@@ -363,7 +423,7 @@ export function SalesWorkspaceHome() {
                       ) : null}
 
                       <Link
-                        href={`/admin/sales/${event.leadId}`}
+                        href={leadHref(event.leadId)}
                         className="mt-2 inline-block text-sm text-accent"
                       >
                         Leadを開く

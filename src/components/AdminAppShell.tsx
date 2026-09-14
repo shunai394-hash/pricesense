@@ -32,9 +32,9 @@ export function AdminAppShell({ children }: { children: ReactNode }) {
         <aside className="hidden w-60 shrink-0 border-r border-border/60 bg-surface/40 lg:flex lg:flex-col">
           <div className="border-b border-border/60 px-5 py-5">
             <Link href="/" className="font-display text-lg text-foreground">
-              PriceSense
+              AI営業部
             </Link>
-            <p className="mt-1 text-xs text-muted">営業ワークスペース</p>
+            <p className="mt-1 text-xs text-muted">互換管理画面 · PriceSense</p>
           </div>
           <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="管理メニュー">
             {NAV.map((item) => {
@@ -55,16 +55,21 @@ export function AdminAppShell({ children }: { children: ReactNode }) {
               );
             })}
           </nav>
-          <p className="px-5 pb-5 text-[11px] leading-relaxed text-muted">
-            AIは提案まで。外部への営業連絡は人間が確認してから実行します。自動メール送信はありません。
-          </p>
+          <div className="space-y-2 px-5 pb-5 text-[11px] leading-relaxed text-muted">
+            <Link href="/app" className="block text-accent">
+              新UI（AI営業部）へ
+            </Link>
+            <p>
+              AIは提案まで。外部への営業連絡は人間が確認してから実行します。自動メール送信はありません。
+            </p>
+          </div>
         </aside>
 
         <div className="min-w-0 flex-1 pb-24 lg:pb-0">
           <header className="border-b border-border/60 px-4 py-3 lg:hidden">
             <div className="flex items-center justify-between">
               <Link href="/admin" className="font-display text-lg text-foreground">
-                PriceSense
+                AI営業部
               </Link>
               <Link href="/" className="text-xs text-accent">
                 診断サイトへ

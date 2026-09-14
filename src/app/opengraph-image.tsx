@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { DEFAULT_DESCRIPTION, SITE_NAME } from "@/lib/seo";
 
-export const alt = `${SITE_NAME} — フリーランス単価診断`;
+export const alt = `${SITE_NAME} — AI営業部`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -41,12 +41,12 @@ export default function OpenGraphImage() {
               alignItems: "center",
               justifyContent: "center",
               color: "#e8c547",
-              fontSize: 36,
+              fontSize: 22,
               fontWeight: 700,
               fontFamily: "Georgia, serif",
             }}
           >
-            P
+            AI
           </div>
           <div
             style={{
@@ -57,13 +57,13 @@ export default function OpenGraphImage() {
               fontWeight: 500,
             }}
           >
-            PRICESENSE
+            AI営業部
           </div>
         </div>
         <div
           style={{
             display: "flex",
-            fontSize: 64,
+            fontSize: 56,
             fontWeight: 700,
             color: "#f5f0e8",
             lineHeight: 1.2,
@@ -71,7 +71,7 @@ export default function OpenGraphImage() {
             marginBottom: 24,
           }}
         >
-          フリーランス単価診断
+          単価診断から、営業の次の一手へ
         </div>
         <div
           style={{

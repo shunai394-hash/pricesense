@@ -41,7 +41,7 @@ export default function PrivacyPage() {
             決済関連情報（Stripeを通じたサブスクリプション状態。クレジットカード番号等は当サービスでは保持しません）
           </li>
           <li>
-            アクセスログ・利用状況（Google Analyticsによる匿名化されたトラフィックデータ）
+            アクセスログ・利用状況（Google Analyticsを設定している場合の、匿名化されたトラフィックデータ）
           </li>
           <li>ブラウザのローカルストレージに保存されるキャッシュ情報（メールアドレス、Premium状態など）</li>
           <li>
@@ -57,7 +57,7 @@ export default function PrivacyPage() {
           <li>診断結果PDFの保存・メール送信（Resend）</li>
           <li>リード情報の管理・保存（Supabase）</li>
           <li>Premiumプランの提供・課金管理（Stripe）</li>
-          <li>サービス改善のための利用状況分析（Google Analytics）</li>
+          <li>サービス改善のための利用状況分析（計測を設定している場合）</li>
           <li>お問い合わせへの対応</li>
           <li>法令に基づく対応</li>
           <li>
@@ -83,7 +83,7 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong className="text-foreground/90">Google Analytics（GA4）</strong>
-            — アクセス解析（ページ閲覧、診断開始、PDF保存、Premium購入クリック等のイベント計測）
+            — 測定IDが設定されている場合のアクセス解析。未設定の環境では利用しません。
           </li>
         </ul>
         <p>
@@ -118,10 +118,11 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="8. 安全管理">
+      <LegalSection title="8. 安全管理（保存・セキュリティ）">
         <p>
           個人情報の漏えい、滅失、毀損を防止するため、適切な安全管理措置を講じます。
           サーバー側のデータベースアクセスは認証情報により保護されます。
+          保存期間は、サービス提供および監査に必要な範囲とし、不要になった情報は合理的な範囲で削除または匿名化します。
         </p>
       </LegalSection>
 

@@ -21,12 +21,13 @@ export default function Icon() {
         <div
           style={{
             color: "#e8c547",
-            fontSize: 20,
+            fontSize: 16,
             fontWeight: 700,
             fontFamily: "Georgia, serif",
+            letterSpacing: 0.5,
           }}
         >
-          P
+          AI
         </div>
       </div>
     ),

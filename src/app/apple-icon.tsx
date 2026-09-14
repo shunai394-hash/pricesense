@@ -21,12 +21,13 @@ export default function AppleIcon() {
         <div
           style={{
             color: "#e8c547",
-            fontSize: 96,
+            fontSize: 72,
             fontWeight: 700,
             fontFamily: "Georgia, serif",
+            letterSpacing: 1,
           }}
         >
-          P
+          AI
         </div>
       </div>
     ),

@@ -65,6 +65,30 @@ export function LegalPageShell({
               >
                 特定商取引法に基づく表記
               </Link>
+              <Link
+                href="/ai-policy"
+                className="text-accent transition-colors hover:text-accent/80"
+              >
+                AI利用ポリシー
+              </Link>
+              <Link
+                href="/security"
+                className="text-accent transition-colors hover:text-accent/80"
+              >
+                セキュリティ
+              </Link>
+              <Link
+                href="/acceptable-use"
+                className="text-accent transition-colors hover:text-accent/80"
+              >
+                利用禁止事項
+              </Link>
+              <Link
+                href="/contact"
+                className="text-accent transition-colors hover:text-accent/80"
+              >
+                お問い合わせ
+              </Link>
             </div>
           </div>
         </article>
