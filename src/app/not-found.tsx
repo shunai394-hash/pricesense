@@ -33,7 +33,7 @@ export default function NotFound() {
             トップへ戻る
           </Link>
           <Link
-            href="/#diagnosis"
+            href="/diagnosis"
             className="inline-flex items-center justify-center rounded-xl border border-border px-8 py-3.5 text-sm font-medium text-foreground transition-colors hover:border-accent/40"
           >
             無料で単価診断

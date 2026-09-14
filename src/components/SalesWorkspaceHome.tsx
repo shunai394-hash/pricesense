@@ -84,7 +84,7 @@ function leadLabel(action: SalesAction): string {
 
 export function SalesWorkspaceHome() {
   const pathname = usePathname() || "";
-  const inApp = pathname.startsWith("/app");
+  const inApp = pathname === "/" || pathname.startsWith("/app");
   const salesHref = inApp ? "/app/sales" : "/admin/sales";
   const leadHref = (leadId: string) =>
     inApp ? `/app/leads/${leadId}` : `/admin/sales/${leadId}`;

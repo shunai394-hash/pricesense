@@ -158,7 +158,7 @@ export function PricingPageContent() {
               ))}
             </ul>
             <Link
-              href="/#diagnosis"
+            href="/diagnosis"
               className="mt-8 inline-flex w-full items-center justify-center rounded-xl border border-border px-5 py-3.5 text-sm font-semibold text-foreground transition-colors hover:border-accent/40 hover:text-accent"
             >
               無料で診断する
@@ -305,7 +305,7 @@ export function PricingPageContent() {
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
-              href="/#diagnosis"
+            href="/diagnosis"
               className="inline-flex w-full items-center justify-center rounded-xl bg-accent px-8 py-3.5 text-sm font-semibold text-background transition-all hover:bg-accent/90 hover:shadow-[0_0_32px_rgba(232,197,71,0.2)] sm:w-auto"
             >
               無料で単価診断する

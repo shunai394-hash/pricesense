@@ -27,7 +27,13 @@ export function SiteFooter() {
               マイページ
             </Link>
             <Link
-              href="/app"
+              href="/diagnosis"
+              className="text-sm text-muted transition-colors hover:text-foreground"
+            >
+              単価診断
+            </Link>
+            <Link
+              href="/"
               className="text-sm text-muted transition-colors hover:text-foreground"
             >
               AI営業部

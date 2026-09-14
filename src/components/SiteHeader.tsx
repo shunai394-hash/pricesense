@@ -46,7 +46,7 @@ export function SiteHeader({ active = "home" }: SiteHeaderProps) {
             aria-label="メインナビゲーション"
           >
             <Link
-              href="/#diagnosis"
+              href="/diagnosis"
               className={`text-sm transition-colors ${
                 active === "home"
                   ? "text-foreground"
@@ -56,13 +56,13 @@ export function SiteHeader({ active = "home" }: SiteHeaderProps) {
               診断
             </Link>
             <Link
-              href="/#how-it-works"
+              href="/diagnosis#how-it-works"
               className="text-sm text-muted transition-colors hover:text-foreground"
             >
               使い方
             </Link>
             <Link
-              href="/#features"
+              href="/diagnosis#features"
               className="text-sm text-muted transition-colors hover:text-foreground"
             >
               特徴
@@ -99,7 +99,7 @@ export function SiteHeader({ active = "home" }: SiteHeaderProps) {
               </Link>
             ))}
             <Link
-              href="/#diagnosis"
+              href="/diagnosis"
               className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-background transition-all hover:bg-accent/90 hover:shadow-[0_0_24px_rgba(232,197,71,0.2)]"
             >
               無料で単価診断

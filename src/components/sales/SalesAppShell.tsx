@@ -43,7 +43,7 @@ const MOBILE_PRIMARY = [
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
-  if (href === "/app") return pathname === "/app";
+  if (href === "/app") return pathname === "/app" || pathname === "/";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

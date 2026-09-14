@@ -127,7 +127,7 @@ function DiagnosisSnapshot({ record }: { record: LeadRecord }) {
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <Link
-          href="/#diagnosis"
+          href="/diagnosis"
           className="inline-flex min-h-11 items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-background transition-all hover:bg-accent/90"
         >
           診断に戻って次の行動を見る
@@ -260,7 +260,7 @@ export function AccountPageContent() {
               トップで診断し、PDFを保存するとLeadとして登録され、ここに表示されます。
             </p>
             <Link
-              href="/#diagnosis"
+              href="/diagnosis"
               className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-background transition-all hover:bg-accent/90"
             >
               無料診断を始める
@@ -372,7 +372,7 @@ export function AccountPageContent() {
                   料金プランを見る
                 </Link>
                 <Link
-                  href="/#diagnosis"
+                  href="/diagnosis"
                   className="inline-flex w-full items-center justify-center rounded-xl border border-border px-5 py-3.5 text-sm font-semibold text-foreground transition-colors hover:border-accent/40"
                 >
                   診断に戻る

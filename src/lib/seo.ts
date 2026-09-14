@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
 
 export const SITE_NAME = "PriceSense";
-export const SITE_TAGLINE = "単価診断とAI営業部";
+export const SITE_TAGLINE = "AI営業部";
 
-export const DEFAULT_TITLE = `${SITE_NAME} — ${SITE_TAGLINE}`;
+export const DEFAULT_TITLE = `AI営業部 — ${SITE_NAME}`;
 export const DEFAULT_DESCRIPTION =
-  "職種と単価を入力して市場と比較。登録後はLeadとして保存され、AIの提案と人間の確認でフォローアップ・商談・分析までつなぎます。AIが勝手に営業メールを送ることはありません。";
+  "今日やるべき営業アクションと営業状況を確認します。AIは提案し、契約・価格・外部連絡は人間が確認します。自動で営業メールを送ることはありません。";
 
 export const SITE_KEYWORDS = [
+  "AI営業部",
+  "営業支援",
+  "Lead管理",
+  "RevOps",
   "フリーランス",
   "単価診断",
   "単価交渉",
   "市場相場",
   "日単価",
-  "フリーランス単価",
-  "値上げ交渉",
-  "単価アップ",
-  "案件単価",
   "PriceSense",
 ] as const;
 
@@ -77,7 +77,7 @@ export const rootMetadata: Metadata = {
   },
   description: DEFAULT_DESCRIPTION,
   keywords: [...SITE_KEYWORDS],
-  applicationName: SITE_NAME,
+  applicationName: "AI営業部",
   authors: [{ name: SITE_NAME }],
   creator: SITE_NAME,
   publisher: SITE_NAME,

@@ -3,7 +3,8 @@ import { getSiteUrl } from "@/lib/seo";
 
 const STATIC_ROUTES = [
   { path: "/", priority: 1, changeFrequency: "weekly" as const },
-  { path: "/pricing", priority: 0.9, changeFrequency: "monthly" as const },
+  { path: "/diagnosis", priority: 0.9, changeFrequency: "weekly" as const },
+  { path: "/pricing", priority: 0.8, changeFrequency: "monthly" as const },
   { path: "/contact", priority: 0.6, changeFrequency: "yearly" as const },
   { path: "/privacy", priority: 0.5, changeFrequency: "yearly" as const },
   { path: "/terms", priority: 0.5, changeFrequency: "yearly" as const },
