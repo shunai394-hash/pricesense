@@ -56,7 +56,9 @@ function KpiCard({
       <p className="mt-2 font-display text-3xl text-foreground">{value}</p>
     </article>
   );
+
   if (!href) return inner;
+
   return (
     <Link href={href} className="block transition-opacity hover:opacity-90">
       {inner}
@@ -87,13 +89,16 @@ export function SalesWorkspaceHome() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+
     try {
       const headers = { Authorization: `Bearer ${token}` };
+
       const [salesRes, revopsRes, auditRes] = await Promise.all([
         fetch("/api/ai/sales-actions", { headers }),
         fetch("/api/ai/revops", { headers }),
         fetch("/api/ai/sales-action-audit?status=failed&limit=8", { headers }),
       ]);
+
       const salesJson = (await salesRes.json()) as SalesActionsResponse;
       const revopsJson = (await revopsRes.json()) as RevopsResponse;
       const auditJson = (await auditRes.json()) as AuditResponse;
@@ -106,7 +111,8 @@ export function SalesWorkspaceHome() {
         setFailed([]);
         setError(
           formatAdminClientError(
-            salesJson.error || `営業アクションの取得に失敗しました（${salesRes.status}）`,
+            salesJson.error ||
+              `営業アクションの取得に失敗しました（${salesRes.status}）`,
             salesRes.status
           )
         );
@@ -132,8 +138,13 @@ export function SalesWorkspaceHome() {
         setFailedToday(0);
       }
 
-      if ((!revopsRes.ok || !revopsJson.success) && (!auditRes.ok || !auditJson.success)) {
-        setError("今日の営業は読み込めました。分析または監査の一部は失敗しました。");
+      if (
+        (!revopsRes.ok || !revopsJson.success) &&
+        (!auditRes.ok || !auditJson.success)
+      ) {
+        setError(
+          "今日の営業アクションは読み込めましたが、RevOpsまたは監査情報の一部を取得できませんでした。"
+        );
       }
     } catch (loadError) {
       setActions([]);
@@ -141,6 +152,7 @@ export function SalesWorkspaceHome() {
       setActivity(null);
       setKpis(null);
       setFailed([]);
+
       setError(
         formatAdminClientError(
           loadError instanceof Error
@@ -158,10 +170,17 @@ export function SalesWorkspaceHome() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <header className="mb-8 border-b border-border/60 pb-6">
-        <p className="text-xs uppercase tracking-[0.2em] text-accent">Workspace</p>
-        <h1 className="mt-2 font-display text-4xl text-foreground">今日の状況</h1>
+        <p className="text-xs uppercase tracking-[0.2em] text-accent">
+          AI営業部
+        </p>
+
+        <h1 className="mt-2 font-display text-4xl text-foreground">
+          今日の営業状況
+        </h1>
+
         <p className="mt-2 max-w-2xl text-sm text-muted">
-          既存の営業アクション・RevOps・監査APIを集約しています。AIは提案までで、外部への営業連絡は自動実行しません。
+          今日やるべき営業アクション、RevOps、監査情報をまとめて確認できます。
+          AIは提案を支援し、重要な判断や外部への営業連絡は人が確認します。
         </p>
       </header>
 
@@ -173,7 +192,8 @@ export function SalesWorkspaceHome() {
         }}
       >
         <label className="block text-sm">
-          <span className="mb-1 block text-muted">Admin token</span>
+          <span className="mb-1 block text-muted">管理者トークン</span>
+
           <input
             type="password"
             autoComplete="off"
@@ -182,13 +202,14 @@ export function SalesWorkspaceHome() {
             className="w-full rounded-lg border border-border bg-background px-3 py-3 text-sm text-foreground outline-none focus:border-accent"
           />
         </label>
+
         <div className="flex items-end">
           <button
             type="submit"
             disabled={loading || !token}
             className="min-h-11 w-full rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-background disabled:opacity-40"
           >
-            {loading ? "読み込み中…" : "今日の状況を見る"}
+            {loading ? "読み込み中…" : "今日の営業を見る"}
           </button>
         </div>
       </form>
@@ -201,22 +222,43 @@ export function SalesWorkspaceHome() {
 
       {!counts ? (
         <p className="text-sm text-muted">
-          管理者トークンを入力すると、HOT Lead・要フォロー・失敗アクションなど、今日やるべきことが表示されます。
+          管理者トークンを入力すると、HOT Lead・営業アクション・失敗した処理など、今日やるべきことが表示されます。
         </p>
       ) : (
         <div className="space-y-10">
           <section>
             <h2 className="mb-4 font-display text-2xl">今日やること</h2>
+
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <KpiCard label="未処理アクション" value={activity?.pending ?? counts.total} href="/admin/sales" />
-              <KpiCard label="P0" value={counts.P0} href="/admin/sales" />
-              <KpiCard label="HOT Lead" value={kpis?.hotLeads ?? "—"} href="/admin/revops" />
-              <KpiCard label="本日失敗" value={activity?.failedToday ?? failedToday} href="/admin/ops" />
+              <KpiCard
+                label="未処理アクション"
+                value={activity?.pending ?? counts.total}
+                href="/admin/sales"
+              />
+
+              <KpiCard
+                label="P0"
+                value={counts.P0}
+                href="/admin/sales"
+              />
+
+              <KpiCard
+                label="HOT Lead"
+                value={kpis?.hotLeads ?? "—"}
+                href="/admin/revops"
+              />
+
+              <KpiCard
+                label="本日失敗"
+                value={activity?.failedToday ?? failedToday}
+                href="/admin/ops"
+              />
             </div>
           </section>
 
           <section>
-            <h2 className="mb-4 font-display text-2xl">パイプライン</h2>
+            <h2 className="mb-4 font-display text-2xl">営業パイプライン</h2>
+
             {kpis ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <KpiCard label="Lead" value={kpis.leads} href="/admin/revops" />
@@ -224,17 +266,17 @@ export function SalesWorkspaceHome() {
                 <KpiCard label="商談" value={kpis.meetings} href="/admin/revops" />
                 <KpiCard label="提案" value={kpis.proposals} href="/admin/revops" />
                 <KpiCard label="Deal" value={kpis.deals} href="/admin/revops" />
-                <KpiCard label="成約" value={kpis.won} href="/admin/revops" />
+                <KpiCard label="Won" value={kpis.won} href="/admin/revops" />
                 <KpiCard label="交渉中" value={kpis.negotiating} href="/admin/sales" />
                 <KpiCard
-                  label="Lead→Won"
+                  label="Lead → Won"
                   value={`${kpis.conversionRates.leadToWon}%`}
                   href="/admin/revops"
                 />
               </div>
             ) : (
               <p className="rounded-lg border border-border/80 bg-surface/50 px-4 py-3 text-sm text-muted">
-                売上分析の読み込みに失敗しました。RevOps画面から再試行できます。
+                RevOps情報を読み込めませんでした。RevOps画面から再確認できます。
               </p>
             )}
           </section>
@@ -242,13 +284,17 @@ export function SalesWorkspaceHome() {
           <section>
             <div className="mb-4 flex items-end justify-between gap-3">
               <h2 className="font-display text-2xl">優先アクション</h2>
+
               <Link href="/admin/sales" className="text-sm text-accent">
                 すべて見る
               </Link>
             </div>
+
             {todayActions.length === 0 ? (
               <p className="rounded-lg border border-border/80 bg-surface/50 px-4 py-3 text-sm text-muted">
-                今日の対象はありません。新しいLeadは公開サイトのPDF保存から登録されます。過去の実行は{' '}
+                今日の対象はありません。新しいLeadが登録されると、ここに営業アクションが表示されます。
+                失敗した処理は
+                {" "}
                 <Link href="/admin/ops" className="text-accent">
                   監査・復旧
                 </Link>
@@ -264,11 +310,14 @@ export function SalesWorkspaceHome() {
                           <p className="text-xs uppercase tracking-wide text-accent">
                             {action.priority} · {action.actionType}
                           </p>
+
                           <h3 className="mt-1 font-display text-xl text-foreground">
                             {leadLabel(action)}
                           </h3>
+
                           <p className="mt-2 text-sm">{action.nextAction}</p>
                         </div>
+
                         <Link
                           href={`/admin/sales/${action.leadId}`}
                           className="min-h-11 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-background"
@@ -286,13 +335,15 @@ export function SalesWorkspaceHome() {
           <section>
             <div className="mb-4 flex items-end justify-between gap-3">
               <h2 className="font-display text-2xl">失敗したアクション</h2>
+
               <Link href="/admin/ops" className="text-sm text-accent">
                 監査・復旧
               </Link>
             </div>
+
             {failed.length === 0 ? (
               <p className="rounded-lg border border-border/80 bg-surface/50 px-4 py-3 text-sm text-muted">
-                失敗中の営業アクションはありません。
+                失敗した営業アクションはありません。
               </p>
             ) : (
               <ul className="space-y-3">
@@ -302,10 +353,15 @@ export function SalesWorkspaceHome() {
                       <p className="text-xs text-accent">
                         {event.status} · {event.actorKind || "human"}
                       </p>
+
                       <p className="mt-1 text-sm">{event.operation}</p>
+
                       {event.error ? (
-                        <p className="mt-1 text-xs text-red-200">{event.error}</p>
+                        <p className="mt-1 text-xs text-red-200">
+                          {event.error}
+                        </p>
                       ) : null}
+
                       <Link
                         href={`/admin/sales/${event.leadId}`}
                         className="mt-2 inline-block text-sm text-accent"
