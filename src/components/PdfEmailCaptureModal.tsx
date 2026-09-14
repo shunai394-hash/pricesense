@@ -172,7 +172,7 @@ export function PdfEmailCaptureModal({
         aria-label="閉じる"
       />
 
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-accent/25 bg-surface-elevated shadow-[0_0_60px_rgba(232,197,71,0.1)]">
+      <div className="relative z-10 max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-accent/25 bg-surface-elevated shadow-[0_0_60px_rgba(232,197,71,0.1)]">
         {isComplete && registrationResult ? (
           <>
             <div className="px-6 py-6 text-center">

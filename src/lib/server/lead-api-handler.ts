@@ -8,6 +8,7 @@ import {
   isResendConfigured,
   isSupabaseConfigured,
 } from "@/lib/server/env";
+import { publicErrorMessage } from "@/lib/server/public-error";
 
 export async function handleLeadRegistrationPost(
   request: Request
@@ -16,7 +17,13 @@ export async function handleLeadRegistrationPost(
     const configError = getSupabaseConfigError() ?? "Lead API is not configured";
     console.error("[save-report] Supabase config invalid:", configError);
 
-    return NextResponse.json({ error: configError }, { status: 503 });
+    return NextResponse.json(
+      {
+        error:
+          "Leadの保存は現在利用できません。診断結果のPDFは端末に保存できます。",
+      },
+      { status: 503 }
+    );
   }
 
   let body: ReturnType<typeof parseLeadApiRequestBody>;
@@ -92,6 +99,14 @@ export async function handleLeadRegistrationPost(
 
     console.error("[save-report] POST failed:", message, error);
 
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: publicErrorMessage(
+          error,
+          "Leadの保存に失敗しました。時間をおいて再試行してください。"
+        ),
+      },
+      { status: 500 }
+    );
   }
 }

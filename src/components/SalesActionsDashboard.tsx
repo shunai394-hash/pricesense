@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { formatAdminClientError } from "@/lib/admin-ui";
 import type { SalesAction, SalesActionCounts } from "@/lib/ai/sales-actions";
 import type { SalesActivityCounts } from "@/lib/ai/sales-action-history";
 
@@ -88,7 +89,12 @@ export function SalesActionsDashboard() {
         setActions([]);
         setCounts(null);
         setActivity(null);
-        setError(json.error || `Request failed (${response.status})`);
+        setError(
+          formatAdminClientError(
+            json.error || `Request failed (${response.status})`,
+            response.status
+          )
+        );
         return;
       }
       sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
@@ -100,7 +106,9 @@ export function SalesActionsDashboard() {
       setCounts(null);
       setActivity(null);
       setError(
-        loadError instanceof Error ? loadError.message : "Failed to load actions"
+        formatAdminClientError(
+          loadError instanceof Error ? loadError.message : "Failed to load actions"
+        )
       );
     } finally {
       setLoading(false);
@@ -189,7 +197,13 @@ export function SalesActionsDashboard() {
           <section>
             <h2 className="mb-4 font-display text-2xl">営業アクション一覧</h2>
             {actions.length === 0 ? (
-              <p className="text-sm text-muted">今日の対象はありません。</p>
+              <p className="rounded-lg border border-border/80 bg-surface/50 px-4 py-3 text-sm text-muted">
+                今日の対象はありません。公開サイトで診断PDFが保存されるとLeadが追加されます。失敗した実行は{' '}
+                <Link href="/admin/ops" className="text-accent">
+                  監査・復旧
+                </Link>
+                から確認できます。
+              </p>
             ) : (
               <ul className="space-y-3">
                 {actions.map((action) => (

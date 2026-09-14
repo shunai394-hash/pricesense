@@ -37,6 +37,21 @@ export function getSupabaseAdmin(): SupabaseClient {
   return adminClient;
 }
 
+function sameOptionalNumber(
+  left: number | null | undefined,
+  right: number | null | undefined
+): boolean {
+  if (left == null && right == null) return true;
+  if (left == null || right == null) return false;
+  return Number(left) === Number(right);
+}
+
+const DUPLICATE_LEAD_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Inserts a lead unless the same email + diagnosis already exists in the last 24h.
+ * Does not add a unique email constraint (historical duplicates and sales lead_id stay intact).
+ */
 export async function insertLeadRecord(record: LeadRecord): Promise<void> {
   const supabase = getSupabaseAdmin();
 
@@ -51,6 +66,33 @@ export async function insertLeadRecord(record: LeadRecord): Promise<void> {
     target_rate: record.targetRate ?? null,
     created_at: record.createdAt,
   };
+
+  const since = new Date(Date.now() - DUPLICATE_LEAD_WINDOW_MS).toISOString();
+  const { data: existing, error: lookupError } = await supabase
+    .from("leads")
+    .select("id, category_id, user_rate, market_rate")
+    .eq("email", row.email)
+    .gte("created_at", since)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (lookupError) {
+    console.error("[save-report] duplicate-lead lookup failed:", {
+      message: lookupError.message,
+      code: lookupError.code,
+    });
+  } else {
+    const duplicate = (existing ?? []).some(
+      (candidate) =>
+        (candidate.category_id ?? null) === row.category_id &&
+        sameOptionalNumber(candidate.user_rate, row.user_rate) &&
+        sameOptionalNumber(candidate.market_rate, row.market_rate)
+    );
+    if (duplicate) {
+      console.info("[save-report] skipped duplicate lead insert within 24h");
+      return;
+    }
+  }
 
   const { error } = await supabase.from("leads").insert(row);
 

@@ -30,7 +30,7 @@ export function SiteFooter() {
               href="/admin"
               className="text-sm text-muted transition-colors hover:text-foreground"
             >
-              営業ワークスペース
+              営業ワークスペース（管理者）
             </Link>
           </div>
           <p className="text-center text-xs text-muted sm:text-right">

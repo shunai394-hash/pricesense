@@ -5,6 +5,7 @@ import {
   scoreLead,
   type ScoreResult,
 } from "@/lib/sales/scoring";
+import { isAdminRequest } from "@/lib/server/admin";
 import { isSupabaseConfigured } from "@/lib/server/env";
 import { getSupabaseAdmin } from "@/lib/server/supabase";
 
@@ -72,6 +73,10 @@ async function persistLeadScore(
 }
 
 export async function POST(request: Request) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  }
+
   let body: unknown;
 
   try {

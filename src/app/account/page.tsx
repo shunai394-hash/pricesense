@@ -7,7 +7,7 @@ import { createPageMetadata } from "@/lib/seo";
 export const metadata: Metadata = createPageMetadata({
   title: "マイページ",
   description:
-    "PriceSenseの現在のプラン確認と、Premiumサブスクリプションの解約手続き。",
+    "PriceSenseの現在のプラン確認、この端末に保存した診断結果、Premiumサブスクリプションの解約手続き。",
   path: "/account",
   noIndex: true,
 });

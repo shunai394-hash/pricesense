@@ -43,11 +43,18 @@ async function parseApiErrorMessage(response: Response): Promise<string> {
   try {
     const data = JSON.parse(raw) as { error?: string };
     if (typeof data.error === "string" && data.error.length > 0) {
-      return data.error;
+      if (
+        /service_role|SUPABASE|ADMIN_TOKEN|Failed to save lead|postgres|PGRST/i.test(
+          data.error
+        )
+      ) {
+        return fallback;
+      }
+      return data.error.slice(0, 300);
     }
   } catch {
     if (raw.length > 0) {
-      return raw;
+      return fallback;
     }
   }
 

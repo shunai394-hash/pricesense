@@ -2,8 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
+import { formatYen, type DiagnosisLevel } from "@/lib/calculator";
 import { isValidEmail } from "@/lib/leadCapture";
-import { cacheLeadEmail, getCachedLeadEmail } from "@/lib/leads";
+import { LEGAL_CONFIG } from "@/lib/legal";
+import {
+  cacheLeadEmail,
+  getCachedLeadEmail,
+  getCachedLeadRecord,
+  type LeadRecord,
+} from "@/lib/leads";
 import {
   fetchPremiumAccount,
   type PremiumAccountResponse,
@@ -11,6 +18,14 @@ import {
 import { openBillingPortal } from "@/lib/premium/portal";
 import { cachePremiumStatus } from "@/lib/premium/storage";
 import { PRICING_PLANS } from "@/lib/pricing";
+
+const DIAGNOSIS_LEVEL_LABELS: Record<DiagnosisLevel, string> = {
+  significantly_low: "大幅に低位",
+  below_market: "やや低位",
+  at_market: "市場水準",
+  above_market: "やや上位",
+  premium: "上位水準",
+};
 
 function formatPeriodEnd(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -25,9 +40,19 @@ function formatPeriodEnd(value: string | null | undefined): string | null {
   });
 }
 
-function statusLabel(
-  account: PremiumAccountResponse
-): string {
+function formatSavedAt(value: string): string | null {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString("ja-JP", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function statusLabel(account: PremiumAccountResponse): string {
   if (account.cancelAtPeriodEnd && account.isPremium) {
     return "今期末で解約予定";
   }
@@ -53,6 +78,71 @@ function statusLabel(
   }
 }
 
+function DiagnosisSnapshot({ record }: { record: LeadRecord }) {
+  const savedAt = formatSavedAt(record.createdAt);
+  const levelLabel = record.diagnosisLevel
+    ? DIAGNOSIS_LEVEL_LABELS[record.diagnosisLevel]
+    : null;
+
+  return (
+    <div className="mt-8 rounded-2xl border border-border/80 bg-surface/40 p-5 sm:p-6">
+      <p className="text-xs font-medium text-muted">この端末の診断結果</p>
+      <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">
+        {record.categoryName ?? "単価診断"}
+      </h2>
+      {savedAt ? (
+        <p className="mt-1 text-xs text-muted">保存日時: {savedAt}</p>
+      ) : null}
+
+      <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="text-muted">登録メール</dt>
+          <dd className="mt-0.5 break-all text-foreground">{record.email}</dd>
+        </div>
+        <div>
+          <dt className="text-muted">診断レベル</dt>
+          <dd className="mt-0.5 text-foreground">{levelLabel ?? "—"}</dd>
+        </div>
+        <div>
+          <dt className="text-muted">現在単価</dt>
+          <dd className="mt-0.5 text-foreground">
+            {typeof record.userRate === "number"
+              ? `${formatYen(record.userRate)} / 日`
+              : "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted">市場平均（参考）</dt>
+          <dd className="mt-0.5 text-foreground">
+            {typeof record.marketRate === "number"
+              ? `${formatYen(record.marketRate)} / 日`
+              : "—"}
+          </dd>
+        </div>
+      </dl>
+
+      <p className="mt-4 text-xs leading-relaxed text-muted">
+        PDFは保存時にこの端末へダウンロードされます。クラウド上のファイルロッカーではありません。再取得する場合は診断結果から再度PDFを保存してください。メール送信は保存を依頼したときのみです。
+      </p>
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <Link
+          href="/#diagnosis"
+          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-background transition-all hover:bg-accent/90"
+        >
+          診断に戻って次の行動を見る
+        </Link>
+        <a
+          href={`mailto:${LEGAL_CONFIG.contactEmail}`}
+          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-5 py-3 text-sm font-semibold text-foreground transition-colors hover:border-accent/40"
+        >
+          問い合わせる
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export function AccountPageContent() {
   const [email, setEmail] = useState("");
   const [account, setAccount] = useState<PremiumAccountResponse | null>(null);
@@ -61,6 +151,7 @@ export function AccountPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [portalError, setPortalError] = useState<string | null>(null);
   const [hasLookedUp, setHasLookedUp] = useState(false);
+  const [cachedLead, setCachedLead] = useState<LeadRecord | null>(null);
 
   const lookupAccount = async (lookupEmail: string) => {
     const normalized = lookupEmail.trim();
@@ -91,6 +182,7 @@ export function AccountPageContent() {
   };
 
   useEffect(() => {
+    setCachedLead(getCachedLeadRecord());
     const cached = getCachedLeadEmail();
     if (!cached) return;
 
@@ -135,7 +227,7 @@ export function AccountPageContent() {
           マイページ
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted">
-          現在のプランを確認し、Premiumの解約手続きを行えます。パスワードログインはありません。PDF保存またはPremium購入時に登録したメールアドレスで確認します。
+          診断結果・Lead情報・プランを確認できます。パスワードログインやアプリのダウンロードはありません。PDF保存またはPremium購入時に登録したメールアドレスで確認します。
         </p>
 
         <ol className="mt-8 grid gap-3 text-sm sm:grid-cols-2">
@@ -156,6 +248,25 @@ export function AccountPageContent() {
         <p className="mt-3 text-xs text-muted">
           営業メールの自動送信はありません。プラン確認のあとに、診断へ戻ることもできます。
         </p>
+
+        {cachedLead ? (
+          <DiagnosisSnapshot record={cachedLead} />
+        ) : (
+          <div className="mt-8 rounded-2xl border border-dashed border-border/80 bg-surface/30 p-5 sm:p-6">
+            <p className="text-sm font-medium text-foreground">
+              この端末に保存された診断結果はまだありません
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
+              トップで診断し、PDFを保存するとLeadとして登録され、ここに表示されます。
+            </p>
+            <Link
+              href="/#diagnosis"
+              className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-background transition-all hover:bg-accent/90"
+            >
+              無料診断を始める
+            </Link>
+          </div>
+        )}
 
         <form
           onSubmit={handleSubmit}
@@ -178,7 +289,8 @@ export function AccountPageContent() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted/70 focus:border-accent/60"
+              disabled={isLoading}
+              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted/70 focus:border-accent/60 disabled:opacity-50"
             />
             <button
               type="submit"
@@ -275,6 +387,16 @@ export function AccountPageContent() {
             )}
           </div>
         )}
+
+        <p className="mt-8 text-center text-xs text-muted">
+          データ削除やその他のお問い合わせは{" "}
+          <a
+            href={`mailto:${LEGAL_CONFIG.contactEmail}`}
+            className="text-accent hover:text-accent/80"
+          >
+            {LEGAL_CONFIG.contactEmail}
+          </a>
+        </p>
       </div>
     </section>
   );

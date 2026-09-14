@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { formatAdminClientError } from "@/lib/admin-ui";
 import { DEAL_STATUSES, type DealStatus } from "@/lib/ai/deal";
 import { DEAL_LOST_REASONS, type SalesAction } from "@/lib/ai/sales-actions";
 
@@ -231,7 +232,12 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
       const json = (await response.json()) as LeadDetailResponse;
       if (!response.ok || !json.success) {
         setData(null);
-        setError(json.error || `Request failed (${response.status})`);
+        setError(
+          formatAdminClientError(
+            json.error || `Request failed (${response.status})`,
+            response.status
+          )
+        );
         return;
       }
       sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
@@ -250,7 +256,9 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
     } catch (loadError) {
       setData(null);
       setError(
-        loadError instanceof Error ? loadError.message : "Failed to load lead"
+        formatAdminClientError(
+          loadError instanceof Error ? loadError.message : "Failed to load lead"
+        )
       );
     } finally {
       setLoading(false);
@@ -274,7 +282,12 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
       duplicate?: boolean;
     };
     if (!response.ok || !json.success) {
-      throw new Error(json.error || `Request failed (${response.status})`);
+      throw new Error(
+        formatAdminClientError(
+          json.error || `Request failed (${response.status})`,
+          response.status
+        )
+      );
     }
     return json;
   }
@@ -300,7 +313,9 @@ export function SalesLeadWorkspace({ leadId }: { leadId: string }) {
       await load();
     } catch (actionError) {
       setError(
-        actionError instanceof Error ? actionError.message : "Action failed"
+        formatAdminClientError(
+          actionError instanceof Error ? actionError.message : "Action failed"
+        )
       );
     } finally {
       setActing(null);

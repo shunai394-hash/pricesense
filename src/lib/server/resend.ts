@@ -41,6 +41,7 @@ export async function sendDiagnosisPdfEmail(
             ? `<p style="color:#666;font-size:14px;">職種: ${record.categoryName}</p>`
             : ""
         }
+        <p style="color:#888;font-size:12px;">このメールはご依頼いただいた診断PDFのみです。営業メールの配信ではありません。</p>
         <p style="color:#888;font-size:12px;">※ 相場データは参考値です。PriceSense</p>
       </div>
     `,

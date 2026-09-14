@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { formatAdminClientError } from "@/lib/admin-ui";
 import type {
   RevopsCurrencyValue,
   RevopsFunnelStage,
@@ -90,7 +91,12 @@ export function RevopsDashboard() {
       const json = (await response.json()) as RevopsResponse;
       if (!response.ok || !json.success) {
         setData(null);
-        setError(json.error || `Request failed (${response.status})`);
+        setError(
+          formatAdminClientError(
+            json.error || `Request failed (${response.status})`,
+            response.status
+          )
+        );
         return;
       }
       sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
@@ -98,7 +104,9 @@ export function RevopsDashboard() {
     } catch (loadError) {
       setData(null);
       setError(
-        loadError instanceof Error ? loadError.message : "Failed to load RevOps"
+        formatAdminClientError(
+          loadError instanceof Error ? loadError.message : "Failed to load RevOps"
+        )
       );
     } finally {
       setLoading(false);
@@ -183,13 +191,20 @@ export function RevopsDashboard() {
       ) : null}
 
       {!data?.success ? (
-        <p className="text-sm text-muted">トークンを入力して集計を開始してください。</p>
+          <p className="text-sm text-muted">
+            トークンを入力して集計を開始してください。数字は「今日の状況」と同じ実テーブル集計です。
+          </p>
       ) : (
         <div className="space-y-10">
           <p className="text-sm text-muted">期間: {periodLabel}</p>
 
           <section>
             <h2 className="mb-4 font-display text-2xl">KPI</h2>
+            {(kpis?.leads ?? 0) === 0 ? (
+              <p className="mb-4 rounded-lg border border-border/80 bg-surface/50 px-4 py-3 text-sm text-muted">
+                集計対象のLeadがありません。公開サイトで診断PDFを保存すると、ここに件数が反映されます。
+              </p>
+            ) : null}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <KpiCard
                 label="Leads"

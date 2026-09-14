@@ -1,6 +1,7 @@
 # PriceSense
 
-フリーランス向けの単価診断ツール。市場比較・交渉文生成・Premiumサブスクリプション（月額1,480円）に対応。
+フリーランス向けの単価診断と、診断結果をLead・AI提案・人間確認・RevOpsまでつなぐWebサービス。
+ネイティブアプリの配信、AIチャット、営業メールの自動送信はありません。
 
 ## 技術スタック
 
@@ -28,15 +29,17 @@ npm run dev
 |------|------|------|
 | `NEXT_PUBLIC_APP_URL` | Yes | 本番ドメイン（例: `https://example.com`）。canonical・sitemap・Stripeリダイレクトに使用 |
 | `NEXT_PUBLIC_GA_MEASUREMENT_ID` | Yes | GA4の測定ID（`G-XXXXXXXX`） |
-| `NEXT_PUBLIC_LEAD_API_ENABLED` | Yes | `true` で `/api/leads` によるSupabase連携を有効化 |
+| `NEXT_PUBLIC_LEAD_API_ENABLED` | Yes | **未使用**。Lead保存は `SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` で制御 |
 | `NEXT_PUBLIC_DEBUG_MODE` | Yes | 開発用リードデバッグパネル。本番は `false` |
 | `SUPABASE_URL` | No | SupabaseプロジェクトURL |
 | `SUPABASE_SERVICE_ROLE_KEY` | No | サービスロールキー（**クライアントに公開しない**） |
-| `RESEND_API_KEY` | No | Resend APIキー |
+| `RESEND_API_KEY` | No | Resend APIキー（診断PDFの依頼時送信） |
 | `RESEND_FROM_EMAIL` | No | 送信元メール（例: `PriceSense <noreply@yourdomain.com>`） |
 | `STRIPE_SECRET_KEY` | No | Stripeシークレットキー |
 | `STRIPE_WEBHOOK_SECRET` | No | Webhook署名シークレット |
 | `STRIPE_PRICE_ID` | No | Premium月額プランの Price ID |
+| `AI_API_KEY` / `AI_BASE_URL` / `AI_MODEL` | No | OpenAI互換のサーバー専用設定。未設定時は決定論フォールバック |
+| `ADMIN_TOKEN` | No | 管理API・営業ワークスペース用。**未設定は fail closed（401）** |
 | `NEXT_PUBLIC_LEGAL_*` | Yes | 特商法・プライバシー等の表示用運営者情報 |
 
 ---
@@ -52,16 +55,28 @@ npm run dev
 
 ### 2. テーブル作成
 
-Supabase Dashboard の **SQL Editor** で `supabase/schema.sql` を実行します。
+Supabase Dashboard の **SQL Editor** で `supabase/schema.sql` を実行します（`IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` のため再実行可能）。既存テーブルを DROP / 再作成しないでください。
 
-作成されるテーブル:
+Day-11以前に作成した本番DBには、加算分として `supabase/day-11-sales-ops.sql` を実行します。追加される主な列（`sales_action_events`）:
+
+- `status` / `error` / `completed_at`
+- `actor_kind` / `retry_of` / `attempt`
+- `external_delivery` / `approval_required`
+
+営業オペレーション系テーブルは RLS 有効・ポリシーなし（anon は読めず、`service_role` のみサーバーからアクセス）です。
+
+作成・更新される主なテーブル:
 
 - `leads` — PDF保存・ウェイトリスト登録時のリード
 - `premium_subscriptions` — Stripeサブスクリプション状態
+- `sales_action_events` — 営業アクション監査
+- `sales_deals` / `deal_followup_events` / `sales_followups` / `lead_followups` / `followup_events`
+- `sales_handoffs` / `sales_meetings` / `proposal_drafts` / `quote_drafts`
+- `objection_bank` / `objection_events`
 
 ### 3. 動作確認
 
-`NEXT_PUBLIC_LEAD_API_ENABLED=true` を設定後、PDF保存時に `leads` テーブルへレコードが追加されることを確認します。
+Supabase が設定された状態で PDF保存すると、`leads` テーブルへレコードが追加されます（同一メール・同一診断の24時間以内の再保存は新規行を作りません）。
 
 ---
 
@@ -173,7 +188,8 @@ stripe listen --forward-to localhost:3000/api/stripe/webhook
 
 ### 1. 事前準備
 
-- [ ] Supabase テーブル作成済み
+- [ ] Supabase テーブル作成済み（`schema.sql`。既存本番は必要なら `day-11-sales-ops.sql`）
+- [ ] `ADMIN_TOKEN` を本番に設定済み（未設定だと管理APIはすべて401）
 - [ ] Stripe 商品・Webhook・顧客ポータル設定済み
 - [ ] Resend ドメイン認証済み（メール送信する場合）
 - [ ] GA4 測定ID取得済み
@@ -187,8 +203,8 @@ stripe listen --forward-to localhost:3000/api/stripe/webhook
 
 ```env
 NEXT_PUBLIC_APP_URL=https://your-domain.com
-NEXT_PUBLIC_LEAD_API_ENABLED=true
 NEXT_PUBLIC_DEBUG_MODE=false
+ADMIN_TOKEN=<server-only>
 ```
 
 ### 3. ビルド確認
@@ -209,8 +225,9 @@ npm run start
 | PDFメール | 登録メールにPDF到達（Resend設定時） |
 | Premium購入 | Checkout → Premium機能解放 |
 | 契約管理 | フッターからStripeポータルへ遷移 |
+| 営業ワークスペース | `/admin` でトークン入力後、今日の状況・アクション・監査・RevOps |
 | 法的情報 | `/privacy` `/terms` `/legal` 表示 |
-| SEO | `/robots.txt` `/sitemap.xml` アクセス可 |
+| SEO | `/robots.txt` `/sitemap.xml` アクセス可。`/account` `/admin` `/api/` は disallow |
 
 ---
 
@@ -218,12 +235,14 @@ npm run start
 
 | メソッド | パス | 用途 |
 |---------|------|------|
-| POST | `/api/leads` | リード登録・PDFメール送信 |
+| POST | `/api/save-report` | リード登録・診断PDFメール（依頼時のみ） |
 | GET | `/api/premium/status` | Premium状態確認 |
+| GET | `/api/premium/account` | マイページのプラン確認 |
 | POST | `/api/stripe/checkout` | Checkout Session作成 |
 | POST | `/api/stripe/webhook` | Stripe Webhook |
 | GET | `/api/stripe/session` | 決済完了後のセッション確認 |
 | POST | `/api/stripe/portal` | 顧客ポータルURL発行 |
+| GET/POST | `/api/ai/*` | 営業支援・監査（`ADMIN_TOKEN` 必須。未認証は401） |
 
 ---
 

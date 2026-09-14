@@ -111,9 +111,13 @@ export function DiagnosisActionBar({
           {ctaLabel}
         </button>
       </div>
-      {isDisabled && (
+      {isDisabled ? (
         <p className="mt-2 text-center text-xs text-muted">
           日単価を入力するとPDF保存・交渉文サンプルが利用できます
+        </p>
+      ) : (
+        <p className="mt-2 text-center text-xs text-muted">
+          次はPDFを保存するとLeadとして登録されます。営業メールの自動送信はありません。
         </p>
       )}
     </section>

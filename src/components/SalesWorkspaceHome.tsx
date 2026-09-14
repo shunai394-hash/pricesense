@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { formatAdminClientError } from "@/lib/admin-ui";
 import type { RevopsKpis } from "@/lib/ai/revops";
 import type { SalesAction, SalesActionCounts } from "@/lib/ai/sales-actions";
 import type { SalesActivityCounts } from "@/lib/ai/sales-action-history";
@@ -103,7 +104,12 @@ export function SalesWorkspaceHome() {
         setActivity(null);
         setKpis(null);
         setFailed([]);
-        setError(salesJson.error || `営業アクションの取得に失敗しました（${salesRes.status}）`);
+        setError(
+          formatAdminClientError(
+            salesJson.error || `営業アクションの取得に失敗しました（${salesRes.status}）`,
+            salesRes.status
+          )
+        );
         return;
       }
 
@@ -136,7 +142,11 @@ export function SalesWorkspaceHome() {
       setKpis(null);
       setFailed([]);
       setError(
-        loadError instanceof Error ? loadError.message : "ワークスペースの読み込みに失敗しました"
+        formatAdminClientError(
+          loadError instanceof Error
+            ? loadError.message
+            : "ワークスペースの読み込みに失敗しました"
+        )
       );
     } finally {
       setLoading(false);
@@ -238,7 +248,11 @@ export function SalesWorkspaceHome() {
             </div>
             {todayActions.length === 0 ? (
               <p className="rounded-lg border border-border/80 bg-surface/50 px-4 py-3 text-sm text-muted">
-                今日の対象はありません。
+                今日の対象はありません。新しいLeadは公開サイトのPDF保存から登録されます。過去の実行は{' '}
+                <Link href="/admin/ops" className="text-accent">
+                  監査・復旧
+                </Link>
+                から確認できます。
               </p>
             ) : (
               <ul className="space-y-3">

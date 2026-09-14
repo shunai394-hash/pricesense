@@ -55,7 +55,7 @@ export default function Home() {
                     "適正単価が30秒でわかる",
                     "PDF保存でLead登録",
                     "AIは提案、実行は人間確認",
-                    "フォロー・商談・分析まで追跡",
+                    "営業アクションとRevOpsで追跡",
                   ].map((item) => (
                     <li
                       key={item}

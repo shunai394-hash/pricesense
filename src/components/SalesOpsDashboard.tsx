@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { formatAdminClientError } from "@/lib/admin-ui";
 import type { SalesActionStatus } from "@/lib/ai/sales-action-history";
 
 const TOKEN_STORAGE_KEY = "pricesense.adminToken";
@@ -123,7 +124,12 @@ export function SalesOpsDashboard() {
       if (!response.ok || !json.success) {
         setEvents([]);
         setCounts(null);
-        setError(json.error || `Request failed (${response.status})`);
+        setError(
+          formatAdminClientError(
+            json.error || `Request failed (${response.status})`,
+            response.status
+          )
+        );
         return;
       }
       sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
@@ -134,7 +140,9 @@ export function SalesOpsDashboard() {
       setEvents([]);
       setCounts(null);
       setError(
-        loadError instanceof Error ? loadError.message : "Failed to load audit"
+        formatAdminClientError(
+          loadError instanceof Error ? loadError.message : "Failed to load audit"
+        )
       );
     } finally {
       setLoading(false);
@@ -163,15 +171,22 @@ export function SalesOpsDashboard() {
         });
         const json = (await response.json()) as MutationResponse;
         if (!response.ok || !json.success) {
-          setError(json.error || `Request failed (${response.status})`);
+          setError(
+            formatAdminClientError(
+              json.error || `Request failed (${response.status})`,
+              response.status
+            )
+          );
           return;
         }
         await load();
       } catch (mutateError) {
         setError(
-          mutateError instanceof Error
-            ? mutateError.message
-            : "Failed to update action"
+          formatAdminClientError(
+            mutateError instanceof Error
+              ? mutateError.message
+              : "Failed to update action"
+          )
         );
       } finally {
         setMutating(null);
@@ -276,7 +291,9 @@ export function SalesOpsDashboard() {
               {tab === "failed" ? "失敗したアクション" : "監査ログ"}
             </h2>
             {rows.length === 0 ? (
-              <p className="text-sm text-muted">該当する記録はありません。</p>
+              <p className="rounded-lg border border-border/80 bg-surface/50 px-4 py-3 text-sm text-muted">
+                該当する記録はありません。営業アクション画面からLeadを開き、人間確認のうえ実行するとここに履歴が残ります。
+              </p>
             ) : (
               <ul className="space-y-3">
                 {rows.map((event) => (

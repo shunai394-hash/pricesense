@@ -8,6 +8,7 @@ import {
 } from "@/lib/ai/respond";
 import { parseOptionalLeadId, scoreLead } from "@/lib/sales/scoring";
 import { syncFollowupAfterLeadTurn } from "@/lib/ai/followup";
+import { isAdminRequest } from "@/lib/server/admin";
 import {
   getSupabaseConfigError,
   isSupabaseConfigured,
@@ -36,6 +37,10 @@ function parseOptionalMessage(body: Record<string, unknown>): string | null {
 }
 
 export async function POST(request: Request) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+
   if (!isSupabaseConfigured()) {
     const configError = getSupabaseConfigError() ?? "Lead API is not configured";
     return NextResponse.json(

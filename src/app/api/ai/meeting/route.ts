@@ -15,6 +15,7 @@ import type {
   SalesBrief,
 } from "@/lib/ai/sales-brief";
 import { parseOptionalLeadId } from "@/lib/sales/scoring";
+import { isAdminRequest } from "@/lib/server/admin";
 import {
   getSupabaseConfigError,
   isSupabaseConfigured,
@@ -60,6 +61,10 @@ function asBrief(value: unknown): SalesBrief | null {
 }
 
 export async function POST(request: Request) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+
   if (!isSupabaseConfigured()) {
     const configError = getSupabaseConfigError() ?? "Lead API is not configured";
     return NextResponse.json(

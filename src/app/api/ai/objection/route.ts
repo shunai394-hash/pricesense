@@ -7,6 +7,7 @@ import {
 import type { SalesLeadRow } from "@/lib/ai/respond";
 import { parseOptionalLeadId } from "@/lib/sales/scoring";
 import { syncFollowupAfterLeadTurn } from "@/lib/ai/followup";
+import { isAdminRequest } from "@/lib/server/admin";
 import {
   getSupabaseConfigError,
   isSupabaseConfigured,
@@ -52,6 +53,10 @@ async function loadObjectionBank(
 }
 
 export async function POST(request: Request) {
+  if (!isAdminRequest(request)) {
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+
   if (!isSupabaseConfigured()) {
     const configError = getSupabaseConfigError() ?? "Lead API is not configured";
     return NextResponse.json(
