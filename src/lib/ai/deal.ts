@@ -430,7 +430,7 @@ export async function runDealFollowupTurn(input: {
 
   const detection = message
     ? await detectObjection(message)
-    : { objectionType: null, source: "none" as const, definition: null };
+    : { objectionType: null, source: "none" as const, definition: null, type: null, confidence: 0, matchedKeywords: [], reason: "no objection detected" };
 
   const previous = input.existingDeal?.status ?? null;
   const status = resolveDealStatus({

@@ -2,7 +2,6 @@ import { getCompatibleAiConfig } from "@/lib/server/env";
 import type { ExtractedIntentPatch } from "@/lib/ai/respond";
 import {
   appendConversationMessage,
-  generateSalesReply,
   mergeScoreInput,
   parseConversation,
   scoreInputFromLeadConversation,
@@ -24,415 +23,504 @@ export const OBJECTION_TYPES = [
 export type ObjectionType = (typeof OBJECTION_TYPES)[number];
 
 export interface ObjectionDefinition {
-  objectionType: ObjectionType;
+  type: ObjectionType;
+  label: string;
+  description: string;
   keywords: string[];
-  responseStrategy: string;
-  responsePlay: string;
-  fallbackReply: string;
   enabled: boolean;
-  modelVersion: string;
+  fallbackReply: string;
 }
 
 export interface ObjectionDetection {
   objectionType: ObjectionType | null;
-  source: "deterministic" | "llm" | "none";
+  source: "keyword" | "llm" | "none";
   definition: ObjectionDefinition | null;
+  type: ObjectionType | null;
+  confidence: number;
+  matchedKeywords: string[];
+  reason: string;
+}
+
+export interface ObjectionEvent {
+  lead_id: string;
+  objection_key: string | null;
+  objection_type: ObjectionType | null;
+  customer_message?: string;
+  raw_text: string;
+  response_play: string;
+  source: string;
+  metadata: Record<string, unknown>;
 }
 
 export interface ObjectionTurnResult {
-  conversation: ConversationMessage[];
-  scored: ScoreResult;
-  reply: string;
   detection: ObjectionDetection;
-  event: {
-    lead_id: string;
-    objection_key: string | null;
-    objection_type: string | null;
-    customer_message: string;
-    raw_text: string;
-    response_play: string | null;
-    source: string;
-    metadata: Record<string, unknown>;
-  };
+  reply: string;
+  nextAction: string;
+  scored: ScoreResult;
+  score: ScoreResult;
+  intentPatch: ExtractedIntentPatch;
+  conversation: ConversationMessage[];
+  event: ObjectionEvent;
 }
 
 const DETECTION_ORDER: ObjectionType[] = [
   "no_budget",
-  "no_need_now",
-  "too_expensive",
   "competitor_X",
+  "no_need_now",
   "think_it_over",
+  "too_expensive",
 ];
 
 export const DEFAULT_OBJECTION_BANK: ObjectionDefinition[] = [
   {
-    objectionType: "too_expensive",
-    keywords: ["高い", "高すぎ", "ちょっと高い", "高いです", "高いので"],
-    responseStrategy:
-      "価格だけを押し切らず、費用対効果・期待できる成果・導入条件を確認する。",
-    responsePlay: "confirm_roi_and_conditions",
-    fallbackReply:
-      "価格だけで判断を急がせるつもりはありません。費用対効果を揃えるために、今回いちばん回収したい成果と、導入の前提条件（期間・対象範囲）を教えてください。",
+    type: "too_expensive",
+    label: "価格が高い",
+    description: "価格や費用対効果への懸念。",
+    keywords: ["高い", "価格", "費用", "予算に合わ", "コスト"],
     enabled: true,
-    modelVersion: OBJECTION_BANK_VERSION,
+    fallbackReply:
+      "ご懸念ありがとうございます。価格だけでなく、導入効果や社内での判断基準も含めて確認できればと思います。まず必要な条件をお聞かせいただけますでしょうか。",
   },
   {
-    objectionType: "think_it_over",
-    keywords: ["検討します", "一度検討", "考えてみ", "検討させて", "検討したい"],
-    responseStrategy: "無理にクロージングせず、判断に必要な情報を確認する。",
-    responsePlay: "clarify_decision_info",
-    fallbackReply:
-      "ご検討いただけるとのこと、承知しました。今すぐ決めていただく必要はありません。判断に足りない情報は、比較材料・効果の見方・進め方のどれに近いですか？",
+    type: "think_it_over",
+    label: "検討したい",
+    description: "社内検討や時間を置くことを希望。",
+    keywords: ["検討", "考え", "持ち帰", "社内で", "また連絡"],
     enabled: true,
-    modelVersion: OBJECTION_BANK_VERSION,
+    fallbackReply:
+      "承知しました。社内でのご検討に必要な情報を整理してお送りします。あわせて、次回確認させていただく時期だけ決めておけますでしょうか。",
   },
   {
-    objectionType: "competitor_X",
-    keywords: ["他社", "競合"],
-    responseStrategy: "競合批判は禁止。比較条件・選定基準を確認する。",
-    responsePlay: "ask_selection_criteria",
-    fallbackReply:
-      "他社もご覧になっているのですね。他社批判はしません。選定で重視されている条件は、価格・精度・使いやすさ・サポートのどれが中心ですか？",
+    type: "competitor_X",
+    label: "競合あり",
+    description: "他社サービスや既存ベンダーとの比較。",
+    keywords: ["他社", "競合", "既存", "別の会社", "他のサービス"],
     enabled: true,
-    modelVersion: OBJECTION_BANK_VERSION,
+    fallbackReply:
+      "承知しました。既存サービスとの比較になると思いますので、まず現在重視されている判断基準を確認させてください。",
   },
   {
-    objectionType: "no_budget",
-    keywords: [
-      "予算がない",
-      "予算はありません",
-      "予算がありません",
-      "予算ない",
-      "今は予算",
-    ],
-    responseStrategy:
-      "予算の有無だけで終了させず、時期・予算確保予定・最低条件を確認する。",
-    responsePlay: "ask_timing_and_minimum",
-    fallbackReply:
-      "現時点で予算がない旨、承知しました。ここで終了ではなく、次に予算を見直す時期と、最低限必要な条件だけ確認させてください。次の見直し時期はいつ頃ですか？",
+    type: "no_budget",
+    label: "予算なし",
+    description: "現時点で予算が確保されていない。",
+    keywords: ["予算がない", "予算なし", "予算が取れ", "予算がないため", "budget"],
     enabled: true,
-    modelVersion: OBJECTION_BANK_VERSION,
+    fallbackReply:
+      "承知しました。現時点での予算状況を踏まえ、導入時期や社内計画を確認できればと思います。次に予算を検討される時期だけ教えていただけますでしょうか。",
   },
   {
-    objectionType: "no_need_now",
-    keywords: [
-      "必要ありません",
-      "必要ない",
-      "今は必要",
-      "今はいいです",
-      "今は大丈夫",
-    ],
-    responseStrategy:
-      "必要性を押し付けず、現在の課題・将来的なタイミングを確認する。",
-    responsePlay: "ask_current_pain_and_future_timing",
-    fallbackReply:
-      "今は不要とのこと、承知しました。必要性を押し付けるつもりはありません。いま困っている点と、将来検討しやすくなるタイミングがあれば教えてください。",
+    type: "no_need_now",
+    label: "今は必要ない",
+    description: "現時点では導入や相談の必要性が低い。",
+    keywords: ["必要ない", "今は不要", "今じゃない", "時期ではない", "まだ早い"],
     enabled: true,
-    modelVersion: OBJECTION_BANK_VERSION,
+    fallbackReply:
+      "承知しました。現時点では優先度が高くないとのことですね。今後必要になる可能性がある時期や条件だけ確認させていただけますでしょうか。",
   },
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  return typeof value === "object" && value !== null;
 }
 
 function parseKeywordList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
-  return value
-    .filter((item): item is string => typeof item === "string")
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
+  return value.filter((item): item is string => typeof item === "string");
 }
 
 function isEnabledFlag(value: unknown, fallback: boolean): boolean {
-  if (typeof value === "boolean") return value;
-  return fallback;
+  return typeof value === "boolean" ? value : fallback;
 }
 
 export function mergeObjectionBank(
-  rows: unknown[] | null | undefined
+  custom: unknown,
 ): ObjectionDefinition[] {
-  const byType = new Map(
-    DEFAULT_OBJECTION_BANK.map((item) => [item.objectionType, item])
+  if (!Array.isArray(custom)) return DEFAULT_OBJECTION_BANK;
+
+  const merged = new Map<ObjectionType, ObjectionDefinition>(
+    DEFAULT_OBJECTION_BANK.map((item) => [item.type, item]),
   );
 
-  for (const row of rows ?? []) {
-    if (!isRecord(row)) continue;
-    const typeValue =
-      (typeof row.objection_type === "string" && row.objection_type) ||
-      (typeof row.objection_key === "string" && row.objection_key) ||
-      "";
-    if (!isObjectionType(typeValue)) continue;
+  for (const value of custom) {
+    if (!isRecord(value)) continue;
 
-    const current = byType.get(typeValue);
+    const type = value.type;
+    if (typeof type !== "string" || !isObjectionType(type)) continue;
+
+    const current = merged.get(type);
     if (!current) continue;
 
-    const enabled = isEnabledFlag(
-      row.enabled,
-      isEnabledFlag(row.is_active, current.enabled)
-    );
-    const extraKeywords = parseKeywordList(row.keywords);
-    const responseStrategy =
-      typeof row.response_strategy === "string" && row.response_strategy.trim()
-        ? row.response_strategy.trim()
-        : current.responseStrategy;
+    const keywords = parseKeywordList(value.keywords);
 
-    byType.set(typeValue, {
+    merged.set(type, {
       ...current,
-      enabled,
-      keywords: [...new Set([...current.keywords, ...extraKeywords])],
-      responseStrategy,
+      label:
+        typeof value.label === "string" ? value.label : current.label,
+      description:
+        typeof value.description === "string"
+          ? value.description
+          : current.description,
+      keywords: keywords.length > 0 ? keywords : current.keywords,
+      enabled: isEnabledFlag(value.enabled, current.enabled),
+      fallbackReply:
+        typeof value.fallbackReply === "string"
+          ? value.fallbackReply
+          : current.fallbackReply,
     });
   }
 
-  return DETECTION_ORDER.map((type) => byType.get(type)).filter(
-    (item): item is ObjectionDefinition => Boolean(item)
-  );
+  return Array.from(merged.values());
 }
 
 export function isObjectionType(value: string): value is ObjectionType {
   return (OBJECTION_TYPES as readonly string[]).includes(value);
 }
 
-function matchesKeywords(message: string, keywords: string[]): boolean {
-  return keywords.some((keyword) => keyword.length > 0 && message.includes(keyword));
+function matchesKeywords(message: string, keywords: string[]): string[] {
+  const normalized = message.toLowerCase();
+  return keywords.filter((keyword) =>
+    normalized.includes(keyword.toLowerCase()),
+  );
+}
+
+function makeDetection(
+  objectionType: ObjectionType | null,
+  source: "keyword" | "llm" | "none",
+  definition: ObjectionDefinition | null,
+  confidence: number,
+  matchedKeywords: string[],
+  reason: string,
+): ObjectionDetection {
+  return {
+    objectionType,
+    source,
+    definition,
+    type: objectionType,
+    confidence,
+    matchedKeywords,
+    reason,
+  };
 }
 
 export function detectObjectionType(
   message: string,
-  bank: ObjectionDefinition[] = DEFAULT_OBJECTION_BANK
-): ObjectionType | null {
+  bank: ObjectionDefinition[] = DEFAULT_OBJECTION_BANK,
+): ObjectionDetection {
   const text = message.trim();
-  if (!text) return null;
 
-  for (const type of DETECTION_ORDER) {
-    const definition = bank.find((item) => item.objectionType === type);
-    if (!definition || !definition.enabled) continue;
-    if (type === "no_need_now" && /予算/.test(text)) continue;
-    if (matchesKeywords(text, definition.keywords)) return type;
+  if (!text) {
+    return makeDetection(
+      null,
+      "none",
+      null,
+      0,
+      [],
+      "empty message",
+    );
   }
 
-  return null;
+  for (const type of DETECTION_ORDER) {
+    const definition = bank.find(
+      (item) => item.type === type && item.enabled,
+    );
+    if (!definition) continue;
+
+    const matchedKeywords = matchesKeywords(text, definition.keywords);
+
+    if (matchedKeywords.length > 0) {
+      return makeDetection(
+        type,
+        "keyword",
+        definition,
+        Math.min(0.55 + matchedKeywords.length * 0.15, 0.95),
+        matchedKeywords,
+        definition.description,
+      );
+    }
+  }
+
+  return makeDetection(
+    null,
+    "none",
+    null,
+    0,
+    [],
+    "no objection keyword matched",
+  );
 }
 
 export function intentPatchFromObjection(
-  objectionType: ObjectionType | null
+  objectionType: ObjectionType | null,
 ): ExtractedIntentPatch {
   switch (objectionType) {
     case "no_budget":
-      return { budget: "none" };
+      return { intentScore: 35 };
     case "no_need_now":
-      return { decisionTimelineDays: 180 };
+      return { intentScore: 25 };
     case "competitor_X":
-      return { competitor: ["他社"] };
+      return { intentScore: 45 };
+    case "too_expensive":
+      return { intentScore: 50 };
+    case "think_it_over":
+      return { intentScore: 55 };
     default:
       return {};
   }
 }
 
-function applyObjectionIntent(
-  scoreInput: ReturnType<typeof scoreInputFromLeadConversation>,
-  objectionType: ObjectionType | null
-): ReturnType<typeof scoreInputFromLeadConversation> {
-  const patch = intentPatchFromObjection(objectionType);
-  if (objectionType === "competitor_X" && scoreInput.competitor.length > 0) {
-    return scoreInput;
-  }
-  return mergeScoreInput(scoreInput, patch);
-}
-
 function buildObjectionSystemPrompt(
-  definition: ObjectionDefinition,
-  lead: SalesLeadRow
+  detection: ObjectionDetection,
 ): string {
-  const category = lead.category_name ? `職種: ${lead.category_name}` : "";
   return [
-    "あなたはPriceSenseのAI営業担当です。顧客の反論に対応します。",
-    "丁寧で簡潔な日本語。質問は1つだけ。",
-    "メール送信・電話・訪問は行わず、約束もしないでください。",
-    "競合他社の批判は禁止です。",
-    category,
-    `objection_type: ${definition.objectionType}`,
-    `対応方針: ${definition.responseStrategy}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+    "You are PriceSense, a Japanese B2B sales appointment-setting assistant.",
+    "Handle the customer's objection professionally and briefly.",
+    "Do not invent company facts, product facts, pricing, or decision-maker information.",
+    "Do not treat the current contact as the final decision-maker without evidence.",
+    "Respect Japanese approval structures and internal review processes.",
+    "The goal is one appropriate next action, not aggressive closing.",
+    `Detected objection: ${detection.objectionType ?? "unknown"}`,
+    `Reason: ${detection.reason}`,
+  ].join("\n");
 }
 
 async function completeChat(
-  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>
+  systemPrompt: string,
+  userMessage: string,
 ): Promise<string | null> {
   const config = getCompatibleAiConfig();
-  if (!config) return null;
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12_000);
+  if (!config?.apiKey) return null;
 
   try {
-    const response = await fetch(`${config.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`,
-        "Content-Type": "application/json",
+    const response = await fetch(
+      `${config.baseUrl.replace(/\/$/, "")}/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: config.model,
+          temperature: 0.2,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage },
+          ],
+        }),
       },
-      body: JSON.stringify({
-        model: config.model,
-        temperature: 0.3,
-        messages,
-      }),
-      signal: controller.signal,
-    });
+    );
 
-    if (!response.ok) {
-      console.error("[ai/objection] compatible API HTTP", response.status);
-      return null;
-    }
+    if (!response.ok) return null;
 
-    const payload = (await response.json()) as {
-      choices?: Array<{ message?: { content?: unknown } }>;
-    };
-    const content = payload.choices?.[0]?.message?.content;
-    if (typeof content !== "string") return null;
-    const trimmed = content.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "unknown AI error";
-    console.error("[ai/objection] compatible API failed:", message);
+    const data: unknown = await response.json();
+
+    if (!isRecord(data)) return null;
+
+    const choices = data.choices;
+    if (!Array.isArray(choices) || choices.length === 0) return null;
+
+    const first = choices[0];
+    if (!isRecord(first)) return null;
+
+    const message = first.message;
+    if (!isRecord(message)) return null;
+
+    return typeof message.content === "string"
+      ? message.content.trim()
+      : null;
+  } catch {
     return null;
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
 async function classifyObjectionWithLlm(
-  message: string
-): Promise<ObjectionType | null> {
-  const generated = await completeChat([
-    {
-      role: "system",
-      content:
-        '顧客の反論を次のいずれか1つに分類し、JSONだけ返してください: {"objectionType":"too_expensive"|"think_it_over"|"competitor_X"|"no_budget"|"no_need_now"|null}',
-    },
-    { role: "user", content: message },
-  ]);
-  if (!generated) return null;
+  message: string,
+  detection: ObjectionDetection,
+  bank: ObjectionDefinition[],
+): Promise<ObjectionDetection> {
+  if (detection.objectionType) return detection;
+
+  const prompt = [
+    "Classify the Japanese sales response into exactly one of:",
+    OBJECTION_TYPES.join(", "),
+    "or none.",
+    'Return JSON only: {"type":"...","confidence":0.0,"reason":"..."}',
+    `Message: ${message}`,
+  ].join("\n");
+
+  const result = await completeChat(
+    buildObjectionSystemPrompt(detection),
+    prompt,
+  );
+
+  if (!result) return detection;
 
   try {
-    const jsonStart = generated.indexOf("{");
-    const jsonEnd = generated.lastIndexOf("}");
-    if (jsonStart < 0 || jsonEnd <= jsonStart) return null;
-    const parsed = JSON.parse(generated.slice(jsonStart, jsonEnd + 1)) as {
-      objectionType?: unknown;
-    };
-    if (parsed.objectionType === null) return null;
-    if (
-      typeof parsed.objectionType === "string" &&
-      isObjectionType(parsed.objectionType)
-    ) {
-      return parsed.objectionType;
-    }
-  } catch {
-    return null;
-  }
+    const parsed: unknown = JSON.parse(result);
+    if (!isRecord(parsed)) return detection;
 
-  return null;
+    const type = parsed.type;
+    const confidence = parsed.confidence;
+
+    if (
+      typeof type !== "string" ||
+      !isObjectionType(type) ||
+      typeof confidence !== "number"
+    ) {
+      return detection;
+    }
+
+    const definition =
+      bank.find((item) => item.type === type) ?? null;
+
+    return makeDetection(
+      type,
+      "llm",
+      definition,
+      Math.max(0, Math.min(1, confidence)),
+      [],
+      typeof parsed.reason === "string"
+        ? parsed.reason
+        : "LLM classification",
+    );
+  } catch {
+    return detection;
+  }
 }
 
 export async function detectObjection(
   message: string,
-  bank: ObjectionDefinition[] = DEFAULT_OBJECTION_BANK
+  bank: ObjectionDefinition[] = DEFAULT_OBJECTION_BANK,
 ): Promise<ObjectionDetection> {
   const deterministic = detectObjectionType(message, bank);
-  if (deterministic) {
-    return {
-      objectionType: deterministic,
-      source: "deterministic",
-      definition:
-        bank.find((item) => item.objectionType === deterministic) ?? null,
-    };
-  }
 
-  const llmType = await classifyObjectionWithLlm(message);
-  if (llmType) {
-    const definition = bank.find(
-      (item) => item.objectionType === llmType && item.enabled
-    );
-    if (definition) {
-      return { objectionType: llmType, source: "llm", definition };
-    }
-  }
+  if (deterministic.objectionType) return deterministic;
 
-  return { objectionType: null, source: "none", definition: null };
+  return classifyObjectionWithLlm(message, deterministic, bank);
 }
 
 export async function generateObjectionReply(options: {
   lead: SalesLeadRow;
-  conversation: ConversationMessage[];
-  detection: ObjectionDetection;
+  message?: string;
+  detection?: ObjectionDetection;
+  conversation?: ConversationMessage[];
 }): Promise<string> {
-  const { lead, conversation, detection } = options;
-  if (!detection.definition) {
-    const scoreInput = scoreInputFromLeadConversation(lead, conversation);
-    return generateSalesReply({ lead, conversation, scoreInput });
-  }
+  const message = options.message ?? "";
+  const detection =
+    options.detection ??
+    (await detectObjection(message));
 
-  const fallback = detection.definition.fallbackReply;
-  const chatMessages: Array<{
-    role: "system" | "user" | "assistant";
-    content: string;
-  }> = [
-    {
-      role: "system",
-      content: buildObjectionSystemPrompt(detection.definition, lead),
-    },
-  ];
+  const systemPrompt = buildObjectionSystemPrompt(detection);
 
-  for (const item of conversation) {
-    chatMessages.push({ role: item.role, content: item.content });
-  }
+  const aiReply = await completeChat(
+    systemPrompt,
+    [
+      "Write the next Japanese B2B sales reply.",
+      "Keep it concise.",
+      "Acknowledge the objection.",
+      "Do not pressure the customer.",
+      "End with one clear next step.",
+      options.conversation
+        ? `Conversation: ${JSON.stringify(options.conversation)}`
+        : "",
+      `Customer message: ${message}`,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
 
-  const generated = await completeChat(chatMessages);
-  return generated ?? fallback;
+  if (aiReply) return aiReply;
+
+  return (
+    detection.definition?.fallbackReply ??
+    "承知しました。状況を確認したうえで、次の適切な進め方をご相談させてください。"
+  );
 }
 
-export async function runObjectionTurn(
-  lead: SalesLeadRow,
-  message: string,
-  bank: ObjectionDefinition[] = DEFAULT_OBJECTION_BANK
-): Promise<ObjectionTurnResult> {
-  let conversation = parseConversation(lead.conversation);
-  conversation = appendConversationMessage(conversation, "user", message);
+export async function runObjectionTurn(options: {
+  lead: SalesLeadRow;
+  message?: string;
+  bank?: ObjectionDefinition[];
+}): Promise<ObjectionTurnResult> {
+  const bank = options.bank ?? DEFAULT_OBJECTION_BANK;
+  const message = options.message ?? "";
 
   const detection = await detectObjection(message, bank);
-  const scoreInput = applyObjectionIntent(
-    scoreInputFromLeadConversation(lead, conversation),
-    detection.objectionType
+  const intentPatch = intentPatchFromObjection(
+    detection.objectionType,
   );
-  const scored = scoreLead(scoreInput);
-  const reply = await generateObjectionReply({
-    lead,
-    conversation,
-    detection,
-  });
-  conversation = appendConversationMessage(conversation, "assistant", reply);
 
-  return {
+  const previousConversation = parseConversation(
+    options.lead.conversation,
+  );
+
+  const conversation = appendConversationMessage(
+    previousConversation,
+    "user",
+    message,
+  );
+
+  const baseScoreInput = scoreInputFromLeadConversation(
+    options.lead,
     conversation,
-    scored,
-    reply,
+  );
+
+  const scoreInput = mergeScoreInput(
+    baseScoreInput,
+    intentPatch,
+  );
+
+  const scored = scoreLead(scoreInput);
+
+  const reply = await generateObjectionReply({
+    lead: options.lead,
+    message: options.message,
     detection,
-    event: {
-      lead_id: lead.id,
-      objection_key: detection.objectionType,
-      objection_type: detection.objectionType,
-      customer_message: message,
-      raw_text: message,
-      response_play: detection.definition?.responsePlay ?? null,
-      source: "ai_objection",
-      metadata: {
-        detection: detection.source,
-        bankVersion: OBJECTION_BANK_VERSION,
-      },
+    conversation,
+  });
+
+  const nextAction =
+    detection.objectionType === "no_budget"
+      ? "予算時期を確認して再アプローチ時期を設定"
+      : detection.objectionType === "no_need_now"
+        ? "導入タイミングを確認してフォローアップ"
+        : detection.objectionType === "competitor_X"
+          ? "既存サービスと比較する判断基準を確認"
+          : detection.objectionType === "think_it_over"
+            ? "社内検討に必要な情報と次回確認日を設定"
+            : detection.objectionType === "too_expensive"
+              ? "費用対効果と導入条件を確認"
+              : "担当者の反応を確認して次の営業アクションを設定";
+
+  const event: ObjectionEvent = {
+    lead_id: options.lead.id,
+    objection_key: detection.objectionType,
+    objection_type: detection.objectionType,
+    customer_message: options.message,
+    raw_text: message,
+    response_play: nextAction,
+    source: detection.source,
+    metadata: {
+      confidence: detection.confidence,
+      matchedKeywords: detection.matchedKeywords,
+      reason: detection.reason,
+      modelVersion: scored.modelVersion,
+      objectionBankVersion: OBJECTION_BANK_VERSION,
     },
   };
+
+  return {
+    detection,
+    reply,
+    nextAction,
+    scored,
+    score: scored,
+    intentPatch,
+    conversation,
+    event,
+  };
 }
+
+
+

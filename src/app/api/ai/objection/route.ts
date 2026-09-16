@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import {
   mergeObjectionBank,
   runObjectionTurn,
@@ -125,7 +125,7 @@ export async function POST(request: Request) {
 
     const lead = data as SalesLeadRow;
     const bank = await loadObjectionBank(supabase);
-    const turn = await runObjectionTurn(lead, message, bank);
+    const turn = await runObjectionTurn({ lead, message, bank });
 
     const patch: Record<string, unknown> = {
       conversation: turn.conversation,
@@ -195,3 +195,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

@@ -35,3 +35,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+
+src/lib/sales/*.before-sales-os.bak
+
+src/lib/ai/respond.ts.before-sales-os.bak
+
+src/lib/ai/sales-brief.ts.before-sales-os.bak

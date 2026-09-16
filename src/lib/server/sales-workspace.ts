@@ -192,3 +192,119 @@ export async function lookupDealLeadId(
   if (!data?.id || !data.lead_id) return null;
   return { dealId: data.id, leadId: data.lead_id };
 }
+
+export interface SalesOsProspectRow {
+  id: string;
+  company_id: string;
+  contact_id: string | null;
+  status: string;
+  score: number | null;
+  fit_score: number | null;
+  intent_score: number | null;
+  priority: string | null;
+  owner: string | null;
+  source: string | null;
+  last_activity_at: string | null;
+  next_action: string | null;
+  next_action_at: string | null;
+  created_at: string;
+  updated_at: string;
+  company: {
+    id: string;
+    name: string;
+    domain: string | null;
+    industry: string | null;
+    location: string | null;
+    employee_count: number | null;
+    revenue_range: string | null;
+    website_url: string | null;
+  } | null;
+  contact: {
+    id: string;
+    full_name: string | null;
+    job_title: string | null;
+    department: string | null;
+    seniority: string | null;
+    email: string | null;
+    phone: string | null;
+    linkedin_url: string | null;
+  } | null;
+}
+
+export async function loadSalesOsProspects(): Promise<SalesOsProspectRow[]> {
+  const supabase = getSupabaseAdmin();
+
+  const { data, error } = await supabase
+    .from("prospects")
+    .select(`
+      id,
+      company_id,
+      contact_id,
+      status,
+      score,
+      fit_score,
+      intent_score,
+      priority,
+      owner,
+      source,
+      last_activity_at,
+      next_action,
+      next_action_at,
+      created_at,
+      updated_at,
+      companies (
+        id,
+        name,
+        domain,
+        industry,
+        location,
+        employee_count,
+        revenue_range,
+        website_url
+      ),
+      contacts (
+        id,
+        full_name,
+        job_title,
+        department,
+        seniority,
+        email,
+        phone,
+        linkedin_url
+      )
+    `)
+    .order("score", { ascending: false, nullsFirst: false });
+
+  if (error) {
+    throw new Error(`prospects: ${error.message}`);
+  }
+
+  return ((data ?? []) as unknown[]).map((row) => {
+    const item = row as Record<string, unknown>;
+    return {
+      id: String(item.id),
+      company_id: String(item.company_id),
+      contact_id: item.contact_id ? String(item.contact_id) : null,
+      status: String(item.status ?? "new"),
+      score: typeof item.score === "number" ? item.score : null,
+      fit_score: typeof item.fit_score === "number" ? item.fit_score : null,
+      intent_score:
+        typeof item.intent_score === "number" ? item.intent_score : null,
+      priority: typeof item.priority === "string" ? item.priority : null,
+      owner: typeof item.owner === "string" ? item.owner : null,
+      source: typeof item.source === "string" ? item.source : null,
+      last_activity_at:
+        typeof item.last_activity_at === "string"
+          ? item.last_activity_at
+          : null,
+      next_action:
+        typeof item.next_action === "string" ? item.next_action : null,
+      next_action_at:
+        typeof item.next_action_at === "string" ? item.next_action_at : null,
+      created_at: String(item.created_at),
+      updated_at: String(item.updated_at),
+      company: (item.companies as SalesOsProspectRow["company"]) ?? null,
+      contact: (item.contacts as SalesOsProspectRow["contact"]) ?? null,
+    };
+  });
+}

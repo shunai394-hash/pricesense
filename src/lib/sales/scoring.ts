@@ -1,45 +1,63 @@
-export const MODEL_VERSION = "ps-lead-scoring-v1";
+﻿export const MODEL_VERSION = "ps-sales-os-scoring-v1";
 
 export const SCORE_WEIGHTS = {
-  budget: 25,
-  decisionMaker: 25,
-  decisionTimelineDays: 20,
-  painSpecificity: 15,
-  competitor: 10,
-  priceAdvantage: 5,
+  fit: 25,
+  intent: 25,
+  engagement: 15,
+  relationship: 15,
+  salesReadiness: 20,
 } as const;
 
-export type BudgetStatus = "confirmed" | "unknown" | "small" | "none";
-export type PainSpecificity = "high" | "medium" | "low";
 export type EscalationStatus =
   | "ai_handling"
   | "pending_human"
   | "handed_off";
 
 export interface LeadScoreInput {
-  budget: BudgetStatus;
-  decisionMaker: boolean;
-  decisionTimelineDays: number;
-  painSpecificity: PainSpecificity;
-  competitor: string[];
-  priceAdvantage: number;
+  fitScore: number;
+  intentScore: number;
+  engagementScore: number;
+  relationshipScore: number;
+  salesReadinessScore: number;
+
+  companyName?: string;
+  industry?: string | null;
+  employeeCount?: number | null;
+  jobTitle?: string | null;
+  department?: string | null;
+  seniority?: string | null;
+
+  intentSignals?: unknown;
+  researchFindings?: unknown;
+  relationshipSignals?: unknown;
+  engagementSignals?: unknown;
+
+  decisionMaker?: boolean;
+  decisionMakerDistance?: number;
+  existingRelationship?: boolean;
+  replyReceived?: boolean;
+  meetingRequested?: boolean;
+  meetingScheduled?: boolean;
+
+  primaryObjection?: string | null;
+  nextAction?: string | null;
 }
 
 export interface IntentSignals {
-  budget: BudgetStatus;
-  decisionMaker: boolean;
-  decisionTimelineDays: number;
-  painSpecificity: PainSpecificity;
-  competitor: string[];
-  priceAdvantage: number;
+  fitScore: number;
+  intentScore: number;
+  engagementScore: number;
+  relationshipScore: number;
+  salesReadinessScore: number;
+  priorityScore: number;
   points: {
-    budget: number;
-    decisionMaker: number;
-    decisionTimelineDays: number;
-    painSpecificity: number;
-    competitor: number;
-    priceAdvantage: number;
+    fit: number;
+    intent: number;
+    engagement: number;
+    relationship: number;
+    salesReadiness: number;
   };
+  signals: string[];
 }
 
 export interface ScoreResult {
@@ -52,84 +70,115 @@ export interface ScoreResult {
   reason: string;
 }
 
-const BUDGET_VALUES = new Set<BudgetStatus>([
-  "confirmed",
-  "unknown",
-  "small",
-  "none",
-]);
-
-const PAIN_VALUES = new Set<PainSpecificity>(["high", "medium", "low"]);
-
 const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function clampScore(value: number, max: number): number {
+function clampScore(value: number): number {
   if (!Number.isFinite(value)) return 0;
-  return Math.max(0, Math.min(max, Math.round(value)));
+  return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-export function scoreBudget(budget: BudgetStatus): number {
-  switch (budget) {
-    case "confirmed":
-      return SCORE_WEIGHTS.budget;
-    case "unknown":
-      return 15;
-    case "small":
-      return 8;
-    case "none":
-      return 0;
+function parseScore(value: unknown, field: string): number {
+  if (typeof value === "number") return clampScore(value);
+
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return clampScore(parsed);
   }
+
+  throw new Error(`${field} must be a number between 0 and 100`);
 }
 
-export function scoreDecisionMaker(decisionMaker: boolean): number {
-  return decisionMaker ? SCORE_WEIGHTS.decisionMaker : 0;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function scoreDecisionTimelineDays(days: number): number {
-  if (!Number.isFinite(days) || days < 0) return 0;
-  if (days <= 7) return SCORE_WEIGHTS.decisionTimelineDays;
-  if (days <= 14) return 18;
-  if (days <= 30) return 14;
-  if (days <= 60) return 8;
-  if (days <= 90) return 4;
-  return 0;
+function stringValue(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-export function scorePainSpecificity(pain: PainSpecificity): number {
-  switch (pain) {
-    case "high":
-      return SCORE_WEIGHTS.painSpecificity;
-    case "medium":
-      return 8;
-    case "low":
-      return 0;
+function boolValue(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
+function buildSignals(input: LeadScoreInput): string[] {
+  const signals: string[] = [];
+
+  if (input.fitScore >= 70) {
+    signals.push("target_company_fit");
   }
-}
 
-export function scoreCompetitor(competitor: string[]): number {
-  const named = competitor.filter((item) => item.trim().length > 0);
-  return named.length > 0 ? SCORE_WEIGHTS.competitor : 6;
-}
+  if (input.intentScore >= 70) {
+    signals.push("strong_buying_intent");
+  }
 
-export function scorePriceAdvantage(priceAdvantage: number): number {
-  if (!Number.isFinite(priceAdvantage) || priceAdvantage <= 0) return 0;
-  if (priceAdvantage >= 30_000) return SCORE_WEIGHTS.priceAdvantage;
-  if (priceAdvantage >= 10_000) return 3;
-  return 1;
+  if (input.engagementScore >= 70) {
+    signals.push("strong_engagement");
+  }
+
+  if (input.relationshipScore >= 70) {
+    signals.push("existing_relationship");
+  }
+
+  if (input.salesReadinessScore >= 70) {
+    signals.push("sales_ready");
+  }
+
+  if (input.decisionMaker === true) {
+    signals.push("decision_maker");
+  }
+
+  if (
+    typeof input.decisionMakerDistance === "number" &&
+    input.decisionMakerDistance > 0
+  ) {
+    signals.push("decision_maker_not_direct");
+  }
+
+  if (input.replyReceived === true) {
+    signals.push("reply_received");
+  }
+
+  if (input.meetingRequested === true) {
+    signals.push("meeting_requested");
+  }
+
+  if (input.meetingScheduled === true) {
+    signals.push("meeting_scheduled");
+  }
+
+  if (input.existingRelationship === true) {
+    signals.push("existing_contact");
+  }
+
+  return signals;
 }
 
 function resolvePrimaryObjection(input: LeadScoreInput): string {
-  if (input.budget === "none" || input.budget === "small") return "budget";
-  if (!input.decisionMaker) return "authority";
-  if (input.decisionTimelineDays > 30) return "timing";
-  if (input.budget === "unknown") return "budget";
-  if (input.competitor.some((item) => item.trim().length > 0)) {
-    return "competitor";
+  if (input.primaryObjection?.trim()) {
+    return input.primaryObjection.trim();
   }
-  if (!Number.isFinite(input.priceAdvantage) || input.priceAdvantage <= 0) {
-    return "price";
+
+  if (input.intentScore < 30) {
+    return "low_intent";
   }
+
+  if (input.fitScore < 40) {
+    return "low_fit";
+  }
+
+  if (input.engagementScore < 30) {
+    return "no_engagement";
+  }
+
+  if (
+    input.decisionMaker === false &&
+    typeof input.decisionMakerDistance === "number" &&
+    input.decisionMakerDistance >= 2
+  ) {
+    return "decision_maker_distance";
+  }
+
   return "none";
 }
 
@@ -137,172 +186,193 @@ function resolveEscalationStatus(
   score: number,
   input: LeadScoreInput
 ): EscalationStatus {
-  if (score >= 80) {
-    if (
-      input.budget === "confirmed" &&
-      input.decisionMaker &&
-      input.decisionTimelineDays <= 14
-    ) {
-      return "handed_off";
-    }
+  if (input.meetingScheduled || score >= 85) {
+    return "handed_off";
+  }
+
+  if (
+    score >= 65 ||
+    input.replyReceived ||
+    input.meetingRequested
+  ) {
     return "pending_human";
   }
 
-  if (score >= 61) return "pending_human";
   return "ai_handling";
 }
 
 function resolveNextAction(
-  escalationStatus: EscalationStatus,
-  score: number
+  score: number,
+  input: LeadScoreInput
 ): string {
-  if (escalationStatus === "handed_off") return "handoff_to_human";
-  if (escalationStatus === "pending_human") return "queue_human_followup";
-  if (score <= 40) return "continue_ai_nurture";
-  return "continue_ai_qualification";
+  if (input.meetingScheduled) {
+    return "prepare_meeting";
+  }
+
+  if (input.meetingRequested) {
+    return "schedule_meeting";
+  }
+
+  if (input.replyReceived) {
+    return "review_reply_and_follow_up";
+  }
+
+  if (score >= 75) {
+    return "personalized_outreach";
+  }
+
+  if (score >= 55) {
+    return "research_and_contact";
+  }
+
+  if (input.intentScore >= 60) {
+    return "monitor_signal_and_contact";
+  }
+
+  return "continue_prospecting";
 }
 
 function buildReason(
   score: number,
-  points: IntentSignals["points"],
-  escalationStatus: EscalationStatus
+  input: LeadScoreInput,
+  signals: string[]
 ): string {
-  const breakdown = [
-    `budget=${points.budget}/${SCORE_WEIGHTS.budget}`,
-    `decisionMaker=${points.decisionMaker}/${SCORE_WEIGHTS.decisionMaker}`,
-    `decisionTimelineDays=${points.decisionTimelineDays}/${SCORE_WEIGHTS.decisionTimelineDays}`,
-    `painSpecificity=${points.painSpecificity}/${SCORE_WEIGHTS.painSpecificity}`,
-    `competitor=${points.competitor}/${SCORE_WEIGHTS.competitor}`,
-    `priceAdvantage=${points.priceAdvantage}/${SCORE_WEIGHTS.priceAdvantage}`,
-  ].join(", ");
+  const parts: string[] = [
+    `priority=${score}`,
+    `fit=${input.fitScore}`,
+    `intent=${input.intentScore}`,
+    `engagement=${input.engagementScore}`,
+    `relationship=${input.relationshipScore}`,
+    `readiness=${input.salesReadinessScore}`,
+  ];
 
-  const rule =
-    escalationStatus === "handed_off"
-      ? "score>=80 and budget=confirmed and decisionMaker=true and decisionTimelineDays<=14"
-      : escalationStatus === "pending_human"
-        ? score >= 80
-          ? "score>=80 without immediate handoff conditions"
-          : "score 61-79"
-        : "score<=60";
+  if (signals.length > 0) {
+    parts.push(`signals=${signals.join(",")}`);
+  }
 
-  return `ps-lead-scoring-v1 score=${score} (${breakdown}); escalation=${escalationStatus} because ${rule}`;
+  return parts.join(" | ");
 }
 
 export function scoreLead(input: LeadScoreInput): ScoreResult {
-  const points = {
-    budget: scoreBudget(input.budget),
-    decisionMaker: scoreDecisionMaker(input.decisionMaker),
-    decisionTimelineDays: scoreDecisionTimelineDays(input.decisionTimelineDays),
-    painSpecificity: scorePainSpecificity(input.painSpecificity),
-    competitor: scoreCompetitor(input.competitor),
-    priceAdvantage: scorePriceAdvantage(input.priceAdvantage),
-  };
+  const fitScore = clampScore(input.fitScore);
+  const intentScore = clampScore(input.intentScore);
+  const engagementScore = clampScore(input.engagementScore);
+  const relationshipScore = clampScore(input.relationshipScore);
+  const salesReadinessScore = clampScore(input.salesReadinessScore);
 
   const score = clampScore(
-    points.budget +
-      points.decisionMaker +
-      points.decisionTimelineDays +
-      points.painSpecificity +
-      points.competitor +
-      points.priceAdvantage,
-    100
+    fitScore * (SCORE_WEIGHTS.fit / 100) +
+      intentScore * (SCORE_WEIGHTS.intent / 100) +
+      engagementScore * (SCORE_WEIGHTS.engagement / 100) +
+      relationshipScore * (SCORE_WEIGHTS.relationship / 100) +
+      salesReadinessScore * (SCORE_WEIGHTS.salesReadiness / 100)
   );
 
-  const escalationStatus = resolveEscalationStatus(score, input);
-  const primaryObjection = resolvePrimaryObjection(input);
-  const nextAction = resolveNextAction(escalationStatus, score);
+  const signals = buildSignals({
+    ...input,
+    fitScore,
+    intentScore,
+    engagementScore,
+    relationshipScore,
+    salesReadinessScore,
+  });
 
   const intentSignals: IntentSignals = {
-    budget: input.budget,
-    decisionMaker: input.decisionMaker,
-    decisionTimelineDays: input.decisionTimelineDays,
-    painSpecificity: input.painSpecificity,
-    competitor: [...input.competitor],
-    priceAdvantage: input.priceAdvantage,
-    points,
+    fitScore,
+    intentScore,
+    engagementScore,
+    relationshipScore,
+    salesReadinessScore,
+    priorityScore: score,
+    points: {
+      fit: Math.round(fitScore * (SCORE_WEIGHTS.fit / 100)),
+      intent: Math.round(intentScore * (SCORE_WEIGHTS.intent / 100)),
+      engagement: Math.round(
+        engagementScore * (SCORE_WEIGHTS.engagement / 100)
+      ),
+      relationship: Math.round(
+        relationshipScore * (SCORE_WEIGHTS.relationship / 100)
+      ),
+      salesReadiness: Math.round(
+        salesReadinessScore * (SCORE_WEIGHTS.salesReadiness / 100)
+      ),
+    },
+    signals,
   };
 
   return {
     score,
     intentSignals,
-    primaryObjection,
-    escalationStatus,
-    nextAction,
+    primaryObjection: resolvePrimaryObjection(input),
+    escalationStatus: resolveEscalationStatus(score, input),
+    nextAction: resolveNextAction(score, input),
     modelVersion: MODEL_VERSION,
-    reason: buildReason(score, points, escalationStatus),
+    reason: buildReason(score, input, signals),
   };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function parseBudget(value: unknown): BudgetStatus {
-  if (typeof value !== "string" || !BUDGET_VALUES.has(value as BudgetStatus)) {
-    throw new Error("Invalid budget");
-  }
-  return value as BudgetStatus;
-}
-
-function parsePain(value: unknown): PainSpecificity {
-  if (typeof value !== "string" || !PAIN_VALUES.has(value as PainSpecificity)) {
-    throw new Error("Invalid painSpecificity");
-  }
-  return value as PainSpecificity;
-}
-
-function parseCompetitor(value: unknown): string[] {
-  if (value === undefined || value === null) return [];
-  if (!Array.isArray(value)) {
-    throw new Error("Invalid competitor");
-  }
-
-  return value.map((item) => {
-    if (typeof item !== "string") {
-      throw new Error("Invalid competitor");
-    }
-    return item;
-  });
-}
-
-function parseFiniteNumber(value: unknown, field: string): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`Invalid ${field}`);
-  }
-  return value;
 }
 
 export function parseLeadScoreInput(body: unknown): LeadScoreInput {
   if (!isRecord(body)) {
-    throw new Error("Invalid request body");
-  }
-
-  if (typeof body.decisionMaker !== "boolean") {
-    throw new Error("Invalid decisionMaker");
+    throw new Error("Request body must be an object");
   }
 
   return {
-    budget: parseBudget(body.budget),
-    decisionMaker: body.decisionMaker,
-    decisionTimelineDays: parseFiniteNumber(
-      body.decisionTimelineDays,
-      "decisionTimelineDays"
+    fitScore: parseScore(body.fitScore ?? 0, "fitScore"),
+    intentScore: parseScore(body.intentScore ?? 0, "intentScore"),
+    engagementScore: parseScore(
+      body.engagementScore ?? 0,
+      "engagementScore"
     ),
-    painSpecificity: parsePain(body.painSpecificity),
-    competitor: parseCompetitor(body.competitor),
-    priceAdvantage:
-      body.priceAdvantage === undefined || body.priceAdvantage === null
-        ? 0
-        : parseFiniteNumber(body.priceAdvantage, "priceAdvantage"),
+    relationshipScore: parseScore(
+      body.relationshipScore ?? 0,
+      "relationshipScore"
+    ),
+    salesReadinessScore: parseScore(
+      body.salesReadinessScore ?? 0,
+      "salesReadinessScore"
+    ),
+
+    companyName: stringValue(body.companyName) ?? undefined,
+    industry: stringValue(body.industry),
+    employeeCount:
+      typeof body.employeeCount === "number" ? body.employeeCount : null,
+    jobTitle: stringValue(body.jobTitle),
+    department: stringValue(body.department),
+    seniority: stringValue(body.seniority),
+
+    intentSignals: body.intentSignals,
+    researchFindings: body.researchFindings,
+    relationshipSignals: body.relationshipSignals,
+    engagementSignals: body.engagementSignals,
+
+    decisionMaker: boolValue(body.decisionMaker) ?? undefined,
+    decisionMakerDistance:
+      typeof body.decisionMakerDistance === "number"
+        ? body.decisionMakerDistance
+        : undefined,
+    existingRelationship:
+      boolValue(body.existingRelationship) ?? undefined,
+    replyReceived: boolValue(body.replyReceived) ?? undefined,
+    meetingRequested: boolValue(body.meetingRequested) ?? undefined,
+    meetingScheduled: boolValue(body.meetingScheduled) ?? undefined,
+
+    primaryObjection: stringValue(body.primaryObjection),
+    nextAction: stringValue(body.nextAction),
   };
 }
 
 export function parseOptionalLeadId(body: unknown): string | null {
   if (!isRecord(body)) return null;
 
-  const leadId = body.leadId;
-  if (leadId === undefined || leadId === null || leadId === "") return null;
-  if (typeof leadId !== "string" || !UUID_RE.test(leadId)) return null;
+  const value = body.leadId;
 
-  return leadId;
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  if (typeof value !== "string" || !UUID_RE.test(value)) {
+    throw new Error("leadId must be a valid UUID");
+  }
+
+  return value;
 }

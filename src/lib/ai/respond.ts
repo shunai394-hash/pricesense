@@ -1,9 +1,7 @@
-import { getCompatibleAiConfig } from "@/lib/server/env";
+﻿import { getCompatibleAiConfig } from "@/lib/server/env";
 import type {
-  BudgetStatus,
   IntentSignals,
   LeadScoreInput,
-  PainSpecificity,
 } from "@/lib/sales/scoring";
 
 export interface ConversationMessage {
@@ -12,7 +10,11 @@ export interface ConversationMessage {
   createdAt: string;
 }
 
-/** Subset of public.leads columns used as sales context. */
+/**
+ * Temporary compatibility shape for public.leads.
+ * Legacy diagnosis columns remain in the database for now, but are not used
+ * by the Sales OS logic.
+ */
 export interface SalesLeadRow {
   id: string;
   category_name: string | null;
@@ -24,14 +26,46 @@ export interface SalesLeadRow {
   conversation: unknown;
   handed_off_at: string | null;
   handoff_channel: string | null;
+
+  company_name?: string | null;
+  industry?: string | null;
+  employee_count?: number | null;
+  job_title?: string | null;
+  department?: string | null;
+  seniority?: string | null;
+  decision_maker?: boolean | null;
+  decision_maker_distance?: number | null;
+  existing_relationship?: boolean | null;
+  reply_received?: boolean | null;
+  meeting_requested?: boolean | null;
+  meeting_scheduled?: boolean | null;
+  primary_objection?: string | null;
+  next_action?: string | null;
 }
 
 export interface ExtractedIntentPatch {
-  budget?: BudgetStatus;
+  fitScore?: number;
+  intentScore?: number;
+  engagementScore?: number;
+  relationshipScore?: number;
+  salesReadinessScore?: number;
+
+  companyName?: string;
+  industry?: string;
+  employeeCount?: number;
+  jobTitle?: string;
+  department?: string;
+  seniority?: string;
+
   decisionMaker?: boolean;
-  decisionTimelineDays?: number;
-  painSpecificity?: PainSpecificity;
-  competitor?: string[];
+  decisionMakerDistance?: number;
+  existingRelationship?: boolean;
+  replyReceived?: boolean;
+  meetingRequested?: boolean;
+  meetingScheduled?: boolean;
+
+  primaryObjection?: string;
+  nextAction?: string;
 }
 
 export interface SalesReplyContext {
@@ -40,29 +74,29 @@ export interface SalesReplyContext {
   scoreInput: LeadScoreInput;
 }
 
-const BUDGET_VALUES = new Set<BudgetStatus>([
-  "confirmed",
-  "unknown",
-  "small",
-  "none",
-]);
-
-const PAIN_VALUES = new Set<PainSpecificity>(["high", "medium", "low"]);
-
-const DIAGNOSIS_LABELS: Record<string, string> = {
-  significantly_low: "市場より大幅に低い",
-  below_market: "市場より低い",
-  at_market: "市場並み",
-  above_market: "市場より高い",
-  premium: "プレミアム帯",
-};
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function formatYen(value: number): string {
-  return `${new Intl.NumberFormat("ja-JP").format(value)}円`;
+function clamp(value: number, min = 0, max = 100): number {
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function textValue(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function numberValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function booleanValue(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
 }
 
 export function parseConversation(value: unknown): ConversationMessage[] {
@@ -98,361 +132,461 @@ export function appendConversationMessage(
   role: ConversationMessage["role"],
   content: string
 ): ConversationMessage[] {
+  const normalized = content.trim();
+  if (!normalized) return conversation.slice(-40);
+
   return [
     ...conversation,
     {
       role,
-      content,
+      content: normalized,
       createdAt: new Date().toISOString(),
     },
   ].slice(-40);
 }
 
-function parseBudget(value: unknown): BudgetStatus | null {
-  return typeof value === "string" && BUDGET_VALUES.has(value as BudgetStatus)
-    ? (value as BudgetStatus)
-    : null;
+function parseSignals(value: unknown): IntentSignals | undefined {
+  if (!isRecord(value)) return undefined;
+  return value as unknown as IntentSignals;
 }
 
-function parsePain(value: unknown): PainSpecificity | null {
-  return typeof value === "string" && PAIN_VALUES.has(value as PainSpecificity)
-    ? (value as PainSpecificity)
-    : null;
-}
-
-function parseCompetitorList(value: unknown): string[] | null {
-  if (!Array.isArray(value)) return null;
-  const names = value.filter(
-    (item): item is string => typeof item === "string" && item.trim().length > 0
-  );
-  return names.map((item) => item.trim());
+function parseScore(value: unknown, fallback: number): number {
+  const parsed = numberValue(value);
+  return parsed === null ? fallback : clamp(parsed);
 }
 
 export function parseStoredScoreInput(
-  value: unknown,
-  lead: SalesLeadRow
-): LeadScoreInput {
-  const fallback = defaultScoreInputFromLead(lead);
-  if (!isRecord(value)) return fallback;
+  value: unknown
+): Partial<LeadScoreInput> {
+  if (!isRecord(value)) return {};
 
-  const budget = parseBudget(value.budget) ?? fallback.budget;
-  const decisionMaker =
-    typeof value.decisionMaker === "boolean"
-      ? value.decisionMaker
-      : fallback.decisionMaker;
-  const decisionTimelineDays =
-    typeof value.decisionTimelineDays === "number" &&
-    Number.isFinite(value.decisionTimelineDays)
-      ? value.decisionTimelineDays
-      : fallback.decisionTimelineDays;
-  const painSpecificity =
-    parsePain(value.painSpecificity) ??
-    parsePain(value.pain) ??
-    fallback.painSpecificity;
-  const competitor = parseCompetitorList(value.competitor) ?? fallback.competitor;
-  const priceAdvantage =
-    typeof value.priceAdvantage === "number" &&
-    Number.isFinite(value.priceAdvantage)
-      ? value.priceAdvantage
-      : fallback.priceAdvantage;
+  const result: Partial<LeadScoreInput> = {};
 
-  return {
-    budget,
-    decisionMaker,
-    decisionTimelineDays,
-    painSpecificity,
-    competitor,
-    priceAdvantage,
-  };
+  if ("fitScore" in value) {
+    result.fitScore = parseScore(value.fitScore, 0);
+  }
+
+  if ("intentScore" in value) {
+    result.intentScore = parseScore(value.intentScore, 0);
+  }
+
+  if ("engagementScore" in value) {
+    result.engagementScore = parseScore(value.engagementScore, 0);
+  }
+
+  if ("relationshipScore" in value) {
+    result.relationshipScore = parseScore(value.relationshipScore, 0);
+  }
+
+  if ("salesReadinessScore" in value) {
+    result.salesReadinessScore = parseScore(value.salesReadinessScore, 0);
+  }
+
+  if ("decisionMaker" in value && typeof value.decisionMaker === "boolean") {
+    result.decisionMaker = value.decisionMaker;
+  }
+
+  if ("decisionMakerDistance" in value) {
+    const distance = numberValue(value.decisionMakerDistance);
+    if (distance !== null) result.decisionMakerDistance = Math.max(0, Math.round(distance));
+  }
+
+  if ("existingRelationship" in value && typeof value.existingRelationship === "boolean") {
+    result.existingRelationship = value.existingRelationship;
+  }
+
+  if ("replyReceived" in value && typeof value.replyReceived === "boolean") {
+    result.replyReceived = value.replyReceived;
+  }
+
+  if ("meetingRequested" in value && typeof value.meetingRequested === "boolean") {
+    result.meetingRequested = value.meetingRequested;
+  }
+
+  if ("meetingScheduled" in value && typeof value.meetingScheduled === "boolean") {
+    result.meetingScheduled = value.meetingScheduled;
+  }
+
+  if (typeof value.primaryObjection === "string") {
+    result.primaryObjection = value.primaryObjection;
+  }
+
+  if (typeof value.nextAction === "string") {
+    result.nextAction = value.nextAction;
+  }
+
+  return result;
 }
 
 export function defaultScoreInputFromLead(lead: SalesLeadRow): LeadScoreInput {
-  const userRate = lead.user_rate;
-  const marketRate = lead.market_rate;
-  const priceAdvantage =
-    typeof userRate === "number" && typeof marketRate === "number"
-      ? Math.max(0, marketRate - userRate)
-      : 0;
+  const stored = parseStoredScoreInput(lead.intent_signals);
+  const conversation = parseConversation(lead.conversation);
 
-  let painSpecificity: PainSpecificity = "low";
-  if (lead.diagnosis_level === "significantly_low") {
-    painSpecificity = "high";
-  } else if (lead.diagnosis_level === "below_market") {
-    painSpecificity = "medium";
-  }
+  const replyReceived =
+    lead.reply_received ??
+    conversation.some((message) => message.role === "user");
+
+  const meetingRequested =
+    lead.meeting_requested ??
+    conversation.some((message) =>
+      /(アポ|商談|打ち合わせ|面談|日程|schedule|meeting|appointment)/i.test(
+        message.content
+      )
+    );
+
+  const meetingScheduled = lead.meeting_scheduled ?? false;
+
+  const existingRelationship = lead.existing_relationship ?? false;
+
+  const decisionMaker =
+    lead.decision_maker ??
+    stored.decisionMaker ??
+    false;
+
+  const decisionMakerDistance =
+    lead.decision_maker_distance ??
+    stored.decisionMakerDistance ??
+    (decisionMaker ? 0 : 2);
 
   return {
-    budget: "unknown",
-    decisionMaker: false,
-    decisionTimelineDays: 90,
-    painSpecificity,
-    competitor: [],
-    priceAdvantage,
+    fitScore: parseScore(stored.fitScore, lead.category_name ? 50 : 25),
+    intentScore: parseScore(stored.intentScore, replyReceived ? 45 : 15),
+    engagementScore: parseScore(
+      stored.engagementScore,
+      Math.min(100, conversation.length * 12)
+    ),
+    relationshipScore: parseScore(
+      stored.relationshipScore,
+      existingRelationship ? 70 : 0
+    ),
+    salesReadinessScore: parseScore(
+      stored.salesReadinessScore,
+      meetingScheduled ? 90 : meetingRequested ? 70 : replyReceived ? 45 : 10
+    ),
+
+    companyName: lead.company_name ?? undefined,
+    industry: lead.industry,
+    employeeCount: lead.employee_count,
+    jobTitle: lead.job_title,
+    department: lead.department,
+    seniority: lead.seniority,
+
+    intentSignals: parseSignals(lead.intent_signals),
+    decisionMaker,
+    decisionMakerDistance,
+    existingRelationship,
+    replyReceived,
+    meetingRequested,
+    meetingScheduled,
+
+    primaryObjection: lead.primary_objection ?? undefined,
+    nextAction: lead.next_action ?? undefined,
   };
 }
 
 export function mergeScoreInput(
   base: LeadScoreInput,
-  patch: ExtractedIntentPatch
+  patch: Partial<LeadScoreInput>
 ): LeadScoreInput {
   return {
-    budget: patch.budget ?? base.budget,
-    decisionMaker: patch.decisionMaker ?? base.decisionMaker,
-    decisionTimelineDays:
-      patch.decisionTimelineDays ?? base.decisionTimelineDays,
-    painSpecificity: patch.painSpecificity ?? base.painSpecificity,
-    competitor: patch.competitor ?? base.competitor,
-    priceAdvantage: base.priceAdvantage,
+    ...base,
+    ...patch,
+
+    fitScore: patch.fitScore === undefined ? base.fitScore : clamp(patch.fitScore),
+    intentScore:
+      patch.intentScore === undefined
+        ? base.intentScore
+        : clamp(patch.intentScore),
+    engagementScore:
+      patch.engagementScore === undefined
+        ? base.engagementScore
+        : clamp(patch.engagementScore),
+    relationshipScore:
+      patch.relationshipScore === undefined
+        ? base.relationshipScore
+        : clamp(patch.relationshipScore),
+    salesReadinessScore:
+      patch.salesReadinessScore === undefined
+        ? base.salesReadinessScore
+        : clamp(patch.salesReadinessScore),
   };
 }
 
 function userText(conversation: ConversationMessage[]): string {
   return conversation
-    .filter((item) => item.role === "user")
-    .map((item) => item.content)
-    .join("\n");
+    .filter((message) => message.role === "user")
+    .map((message) => message.content)
+    .join("\n")
+    .slice(-6000);
 }
 
-function extractBudget(text: string): BudgetStatus | undefined {
-  if (
-    /予算[をはが]?(確保|承認|決裁済)|確保済|予算あり|予算はあり|予算は確保|予算を確保/.test(
-      text
-    )
-  ) {
-    return "confirmed";
-  }
-  if (/予算[がは]?(ない|無し|なし)|予算ゼロ|今は予算がない/.test(text)) {
-    return "none";
-  }
-  if (/予算[がは]?(少ない|厳しい|小さい)|あまり予算/.test(text)) {
-    return "small";
-  }
-  if (/予算.?(未定|わからない|これから検討|まだ検討)/.test(text)) {
-    return "unknown";
-  }
-  return undefined;
-}
-
-function extractDecisionMaker(text: string): boolean | undefined {
-  if (
-    /私が決裁|自分が決裁|決裁者です|決裁者は私|決裁者は自分|決裁は私|決裁権がある|自分で決められる|私(が|は)決め/.test(
-      text
-    )
-  ) {
+function detectDecisionMaker(text: string): boolean | undefined {
+  if (/(決裁者|決裁権|代表|社長|経営者|役員|最終判断)/i.test(text)) {
     return true;
   }
-  if (
-    /決裁者ではない|私では決められない|上長|上司(の)?確認|社長確認|稟議|確認が必要/.test(
-      text
-    )
-  ) {
+
+  if (/(担当者|窓口|実務担当|上司に確認|上長に確認|社内確認)/i.test(text)) {
     return false;
   }
+
   return undefined;
 }
 
-function extractTimelineDays(text: string): number | undefined {
-  const week = text.match(/(\d+)\s*週間/);
-  if (week) return Number(week[1]) * 7;
+function detectDecisionMakerDistance(text: string): number | undefined {
+  if (/(本人が決裁|私が決裁|私が判断|代表です|社長です)/i.test(text)) {
+    return 0;
+  }
 
-  const month = text.match(/(\d+)\s*(か|ヶ|カ)?月/);
-  if (month) return Number(month[1]) * 30;
+  if (/(役員|部長|事業責任者|決裁者)/i.test(text)) {
+    return 1;
+  }
 
-  const day = text.match(/(\d+)\s*日/);
-  if (day) return Number(day[1]);
+  if (/(上司|上長|社内確認|稟議|決裁を取る)/i.test(text)) {
+    return 2;
+  }
 
-  if (/今週|すぐに|至急|なるべく早く/.test(text)) return 7;
-  if (/今月/.test(text)) return 30;
-  if (/来月/.test(text)) return 45;
-  if (/今四半期/.test(text)) return 60;
-  if (/来期|来年/.test(text)) return 180;
+  if (/(担当者|窓口|現場)/i.test(text)) {
+    return 3;
+  }
+
   return undefined;
 }
 
-function extractPain(text: string): PainSpecificity | undefined {
-  if (
-    /大幅に低い|市場より.{0,12}低|機会損失|案件が取れない|単価が安すぎ|困って(いる|ます)|価格が.{0,10}高|高いのが気|少し高い/.test(
-      text
-    )
-  ) {
-    return "high";
+function detectMeetingRequest(text: string): boolean | undefined {
+  if (/(アポ|商談|打ち合わせ|面談|日程調整|お時間|オンラインで|お話し)/i.test(text)) {
+    return true;
   }
-  if (/上げたい|改善したい|不満|低いと思う|もっと欲しい/.test(text)) {
-    return "medium";
-  }
+
   return undefined;
 }
 
-function extractCompetitors(text: string): string[] | undefined {
-  if (/競合.{0,6}(ない|なし)|他社.{0,6}(ない|なし)|比較していない/.test(text)) {
-    return [];
-  }
-
-  const names: string[] = [];
-  const patterns = [
-    /競合(?:他社)?(?:は|が|:|：)\s*([^。\n]+)/g,
-    /他社(?:は|が|:|：)\s*([^。\n]+)/g,
-    /([A-Za-z0-9ぁ-んァ-ン一-龥]{1,20}社)も?(?:比較|検討|見て)/g,
+function detectObjection(text: string): string | undefined {
+  const patterns: Array<[RegExp, string]> = [
+    [/(予算|費用|価格|金額)/i, "予算・費用"],
+    [/(時期|タイミング|今は|来期|来月以降)/i, "時期・タイミング"],
+    [/(競合|他社|既存サービス|既存業者)/i, "競合・既存取引"],
+    [/(社内確認|上司|上長|稟議|決裁)/i, "社内承認"],
+    [/(必要ない|間に合っている|結構です)/i, "ニーズ不足"],
+    [/(資料だけ|メールで|まず資料)/i, "資料送付"],
   ];
 
-  for (const pattern of patterns) {
-    for (const match of text.matchAll(pattern)) {
-      const raw = match[1] ?? "";
-      for (const part of raw.split(/[、,と\/]/)) {
-        const name = part.replace(/[ですますね]+$/g, "").trim();
-        if (
-          name.length >= 2 &&
-          name.length <= 40 &&
-          !/ない|なし|特に|^他社$/.test(name)
-        ) {
-          names.push(name);
-        }
-      }
-    }
+  for (const [pattern, label] of patterns) {
+    if (pattern.test(text)) return label;
   }
 
-  return names.length > 0 ? [...new Set(names)].slice(0, 10) : undefined;
+  return undefined;
 }
 
-/**
- * Pulls budget / decisionMaker / timeline / pain / competitor from conversation.
- * `pain` is mapped onto existing LeadScoreInput.painSpecificity.
- */
+function detectNextAction(text: string): string | undefined {
+  if (/(日程|アポ|打ち合わせ|商談)/i.test(text)) {
+    return "日程調整";
+  }
+
+  if (/(資料|メールで送|送付)/i.test(text)) {
+    return "資料送付後フォロー";
+  }
+
+  if (/(社内確認|上司|上長|稟議|決裁)/i.test(text)) {
+    return "社内確認後フォロー";
+  }
+
+  if (/(また連絡|後日|来月|来期|時期)/i.test(text)) {
+    return "再接触";
+  }
+
+  if (text.trim()) return "次回接触";
+
+  return undefined;
+}
+
 export function extractIntentPatch(
   conversation: ConversationMessage[]
 ): ExtractedIntentPatch {
   const text = userText(conversation);
+
   if (!text) return {};
 
-  const patch: ExtractedIntentPatch = {};
-  const budget = extractBudget(text);
-  const decisionMaker = extractDecisionMaker(text);
-  const decisionTimelineDays = extractTimelineDays(text);
-  const painSpecificity = extractPain(text);
-  const competitor = extractCompetitors(text);
+  const decisionMaker = detectDecisionMaker(text);
+  const decisionMakerDistance = detectDecisionMakerDistance(text);
+  const meetingRequested = detectMeetingRequest(text);
+  const primaryObjection = detectObjection(text);
+  const nextAction = detectNextAction(text);
 
-  if (budget) patch.budget = budget;
-  if (decisionMaker !== undefined) patch.decisionMaker = decisionMaker;
-  if (decisionTimelineDays !== undefined) {
-    patch.decisionTimelineDays = decisionTimelineDays;
+  const replyCount = conversation.filter(
+    (message) => message.role === "user"
+  ).length;
+
+  const patch: ExtractedIntentPatch = {};
+
+  if (replyCount > 0) {
+    patch.replyReceived = true;
+    patch.engagementScore = clamp(35 + replyCount * 10);
   }
-  if (painSpecificity) patch.painSpecificity = painSpecificity;
-  if (competitor) patch.competitor = competitor;
+
+  if (decisionMaker !== undefined) {
+    patch.decisionMaker = decisionMaker;
+  }
+
+  if (decisionMakerDistance !== undefined) {
+    patch.decisionMakerDistance = decisionMakerDistance;
+    patch.relationshipScore = clamp(60 - decisionMakerDistance * 12);
+  }
+
+  if (meetingRequested !== undefined) {
+    patch.meetingRequested = meetingRequested;
+    patch.salesReadinessScore = meetingRequested ? 75 : 45;
+  }
+
+  if (primaryObjection) {
+    patch.primaryObjection = primaryObjection;
+  }
+
+  if (nextAction) {
+    patch.nextAction = nextAction;
+  }
+
+  if (
+    /(導入したい|検討したい|興味がある|詳しく聞きたい|話を聞きたい|相談したい)/i.test(
+      text
+    )
+  ) {
+    patch.intentScore = 75;
+  } else if (/(興味|検討|資料|情報)/i.test(text)) {
+    patch.intentScore = 55;
+  }
+
+  if (/(社内で確認|稟議|上司に確認|決裁を取る)/i.test(text)) {
+    patch.salesReadinessScore = Math.max(
+      patch.salesReadinessScore ?? 0,
+      60
+    );
+  }
 
   return patch;
 }
 
-function diagnosisSummary(lead: SalesLeadRow): string {
-  const parts: string[] = [];
-  if (lead.category_name) parts.push(`${lead.category_name}の診断`);
-  if (typeof lead.user_rate === "number") {
-    parts.push(`現在単価 ${formatYen(lead.user_rate)}`);
-  }
-  if (typeof lead.market_rate === "number") {
-    parts.push(`市場目安 ${formatYen(lead.market_rate)}`);
-  }
-  if (lead.diagnosis_level && DIAGNOSIS_LABELS[lead.diagnosis_level]) {
-    parts.push(`判定は「${DIAGNOSIS_LABELS[lead.diagnosis_level]}」`);
-  }
-  return parts.join("、");
-}
-
 function nextHearingQuestion(input: LeadScoreInput): string {
-  if (input.budget === "unknown") {
-    return "今回の単価改善について、ご予算の目安はすでに確保されていますか？（確保済み / これから検討 / 現時点ではない）";
+  if (!input.companyName) {
+    return "まず対象企業名と、現在アプローチしている部署を教えてください。";
   }
-  if (!input.decisionMaker) {
-    return "この件はご自身で決裁できますか？それとも上長・パートナーへの確認が必要ですか？";
+
+  if (!input.department) {
+    return "今回の商材に関係する部署・担当者はどこでしょうか？";
   }
-  if (input.decisionTimelineDays > 30) {
-    return "検討の期限はどのくらいですか？目安で構いません（例: 2週間以内 / 今月中 / 未定）。";
+
+  if ((input.decisionMakerDistance ?? 0) > 0) {
+    return "現在の担当者から、最終的な決裁者まではどのような流れでしょうか？";
   }
-  if (input.painSpecificity === "low") {
-    return "いま一番困っている点は何ですか？単価・稼働・案件の質など、具体的に教えてください。";
+
+  if (!input.replyReceived) {
+    return "まずは相手企業に接触できているか、現在の状況を教えてください。";
   }
-  if (input.competitor.length === 0) {
-    return "他に比較しているサービスや相談先はありますか？なければ「特にない」で大丈夫です。";
+
+  if (!input.meetingRequested) {
+    return "相手から具体的な関心や、話を聞きたいという反応はありましたか？";
   }
-  return "現状を踏まえると、次は具体的な改善案のすり合わせに進めそうです。ご希望の進め方はありますか？";
+
+  if (!input.meetingScheduled) {
+    return "アポイント候補日は提示済みでしょうか？";
+  }
+
+  return "次回の商談に向けて、相手が重視しているポイントは何でしょうか？";
 }
 
 export function buildDeterministicReply(context: SalesReplyContext): string {
-  const summary = diagnosisSummary(context.lead);
-  const question = nextHearingQuestion(context.scoreInput);
-  const lastUser = [...context.conversation]
-    .reverse()
-    .find((item) => item.role === "user");
+  const patch = extractIntentPatch(context.conversation);
+  const merged = mergeScoreInput(context.scoreInput, patch);
 
-  if (!lastUser) {
-    const intro = summary
-      ? `PriceSenseの営業担当です。${summary}を拝見しました。単価改善に向けて、最短の次アクションをご案内します。`
-      : "PriceSenseの営業担当です。単価改善に向けて、最短の次アクションをご案内します。";
-    return `${intro}\n\n${question}`;
+  if (merged.meetingScheduled) {
+    return "ありがとうございます。商談前に、相手企業の決裁者・関係部署・確認事項を整理しておきましょう。";
   }
 
-  return `ご共有ありがとうございます。内容を踏まえて優先度を整理しました。\n\n${question}`;
+  if (merged.meetingRequested) {
+    return "ありがとうございます。次は日程調整に進めます。候補日を2〜3つ提示できる状態にしましょう。";
+  }
+
+  if ((merged.decisionMakerDistance ?? 0) > 0) {
+    return "承知しました。日本企業では担当者から上長・決裁者への社内確認が入ることが多いため、決裁までの流れを確認して次の接点を作りましょう。";
+  }
+
+  if (merged.replyReceived) {
+    return "返信ありがとうございます。相手の関心点を確認し、次の接点を具体化しましょう。";
+  }
+
+  return nextHearingQuestion(merged);
 }
 
 function buildSystemPrompt(context: SalesReplyContext): string {
-  const summary = diagnosisSummary(context.lead);
-  const signals = context.scoreInput;
+  const latestUserMessage =
+    [...context.conversation]
+      .reverse()
+      .find((message) => message.role === "user")?.content ?? "";
 
   return [
-    "あなたはPriceSenseのAI営業担当です。フリーランスの単価改善を支援します。",
-    "丁寧で簡潔な日本語で返信し、1回につき質問は1つだけにしてください。",
-    "メール送信・電話・訪問は行わず、それらを約束しないでください。",
-    "APIキーや内部実装には触れないでください。",
-    summary ? `診断コンテキスト: ${summary}` : "",
-    `既知のintent: budget=${signals.budget}, decisionMaker=${signals.decisionMaker}, decisionTimelineDays=${signals.decisionTimelineDays}, painSpecificity=${signals.painSpecificity}, competitor=${signals.competitor.join(",") || "なし"}`,
-    "未知の情報から順にヒアリングしてください（予算→決裁者→期限→課題→競合）。",
-  ]
-    .filter(Boolean)
-    .join("\n");
+    "あなたはPriceSenseのAI営業アシスタントです。",
+    "目的は単価診断ではなく、日本企業向けの新規開拓とアポイント獲得を前進させることです。",
+    "Apollo型のターゲティング、Clay型の企業調査、Sales Marker型の意向シグナル、Sansan型の人脈・接点情報、Instantly型のアウトリーチ運用を組み合わせた営業OSとして回答してください。",
+    "架空の企業情報、担当者情報、シグナル、実績は絶対に作らないでください。",
+    "日本企業では担当者と決裁者が異なる場合があるため、部署、役職、決裁者までの距離、社内確認、稟議を考慮してください。",
+    "回答は日本語で簡潔にしてください。",
+    "営業担当が次に取るべき行動を1つに絞ってください。",
+    "相手への返信文を求められている場合は、そのまま送れる自然な日本語を作ってください。",
+    `企業: ${context.lead.company_name ?? "未特定"}`,
+    `部署: ${context.lead.department ?? "未特定"}`,
+    `担当者: ${context.lead.job_title ?? "未特定"}`,
+    `決裁者距離: ${context.scoreInput.decisionMakerDistance}`,
+    `最新の相手メッセージ: ${latestUserMessage || "なし"}`,
+  ].join("\n");
 }
 
 async function completeChat(
-  messages: Array<{ role: "system" | "user" | "assistant"; content: string }>
+  systemPrompt: string,
+  userMessage: string
 ): Promise<string | null> {
   const config = getCompatibleAiConfig();
   if (!config) return null;
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12_000);
 
   try {
     const response = await fetch(`${config.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${config.apiKey}`,
         "Content-Type": "application/json",
+        Authorization: `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify({
         model: config.model,
-        temperature: 0.4,
-        messages,
+        temperature: 0.3,
+        max_tokens: 500,
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt,
+          },
+          {
+            role: "user",
+            content: userMessage,
+          },
+        ],
       }),
-      signal: controller.signal,
     });
 
-    if (!response.ok) {
-      console.error("[ai/respond] compatible API HTTP", response.status);
-      return null;
-    }
+    if (!response.ok) return null;
 
-    const payload = (await response.json()) as {
-      choices?: Array<{ message?: { content?: unknown } }>;
+    const data = (await response.json()) as {
+      choices?: Array<{
+        message?: {
+          content?: unknown;
+        };
+      }>;
     };
-    const content = payload.choices?.[0]?.message?.content;
-    if (typeof content !== "string") return null;
 
-    const trimmed = content.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "unknown AI error";
-    console.error("[ai/respond] compatible API failed:", message);
+    const content = data.choices?.[0]?.message?.content;
+
+    return typeof content === "string" && content.trim()
+      ? content.trim()
+      : null;
+  } catch {
     return null;
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
@@ -461,23 +595,18 @@ export async function generateSalesReply(
 ): Promise<string> {
   const fallback = buildDeterministicReply(context);
 
-  const chatMessages: Array<{
-    role: "system" | "user" | "assistant";
-    content: string;
-  }> = [{ role: "system", content: buildSystemPrompt(context) }];
+  const latestUserMessage =
+    [...context.conversation]
+      .reverse()
+      .find((message) => message.role === "user")?.content ?? "";
 
-  if (context.conversation.length === 0) {
-    chatMessages.push({
-      role: "user",
-      content: "初回連絡です。自己紹介と最初のヒアリング質問をください。",
-    });
-  } else {
-    for (const item of context.conversation) {
-      chatMessages.push({ role: item.role, content: item.content });
-    }
-  }
+  if (!latestUserMessage) return fallback;
 
-  const generated = await completeChat(chatMessages);
+  const generated = await completeChat(
+    buildSystemPrompt(context),
+    latestUserMessage
+  );
+
   return generated ?? fallback;
 }
 
@@ -485,8 +614,15 @@ export function scoreInputFromLeadConversation(
   lead: SalesLeadRow,
   conversation: ConversationMessage[]
 ): LeadScoreInput {
-  const base = parseStoredScoreInput(lead.intent_signals, lead);
-  return mergeScoreInput(base, extractIntentPatch(conversation));
+  const base = defaultScoreInputFromLead({
+    ...lead,
+    conversation,
+  });
+
+  const patch = extractIntentPatch(conversation);
+
+  return mergeScoreInput(base, patch);
 }
 
 export type { IntentSignals };
+
