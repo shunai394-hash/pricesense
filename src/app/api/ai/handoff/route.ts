@@ -149,7 +149,7 @@ export async function POST(request: Request) {
     const leadPatch: Record<string, unknown> = {
       score: evaluation.scored.score,
       intent_signals: evaluation.scored.intentSignals,
-      escalation_status: evaluation.scored.escalationStatus,
+      escalation_status: "handed_off",
       next_action: evaluation.scored.nextAction,
       model_version: evaluation.scored.modelVersion,
       primary_objection: evaluation.scored.primaryObjection,
@@ -181,7 +181,7 @@ export async function POST(request: Request) {
       handoff: true,
       leadId,
       score: evaluation.scored.score,
-      escalationStatus: evaluation.scored.escalationStatus,
+      escalationStatus: "handed_off",
       nextAction: evaluation.scored.nextAction,
       salesBrief: apiSalesBrief(evaluation.brief),
     });

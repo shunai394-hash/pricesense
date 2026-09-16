@@ -4,7 +4,7 @@ import { createPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata({
   title: "Meetings",
-  description: "商談一覧（AI営業部）",
+  description: "営業ミーティングと次のアクションを管理します。",
   path: "/app/meetings",
   noIndex: true,
 });

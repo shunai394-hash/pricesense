@@ -24,29 +24,32 @@ import {
 import { APP_NAME } from "@/lib/sales/workspace-ui";
 
 const NAV = [
-  { href: "/app", label: "Dashboard", icon: IconDashboard },
-  { href: "/app/prospects", label: "Prospects", icon: IconLeads },
-  { href: "/app/companies", label: "Companies", icon: IconDashboard },
-  { href: "/app/contacts", label: "Contacts", icon: IconUser },
-  { href: "/app/signals", label: "Signals", icon: IconSparkles },
-  { href: "/app/research", label: "AI Research", icon: IconSparkles },
+  { href: "/app", label: "概要", icon: IconDashboard },
   { href: "/app/leads", label: "Leads", icon: IconLeads },
-  { href: "/app/sequences", label: "Sequences", icon: IconFollowups },
-  { href: "/app/campaigns", label: "Campaigns", icon: IconSales },
-  { href: "/app/inbox", label: "Inbox", icon: IconBell },
-  { href: "/app/meetings", label: "Meetings", icon: IconMeetings },
-  { href: "/app/proposals", label: "Proposals", icon: IconProposals },
+  { href: "/app/companies", label: "企業", icon: IconLeads },
+  { href: "/app/contacts", label: "担当者", icon: IconLeads },
+  { href: "/app/prospects", label: "Prospects", icon: IconLeads },
+  { href: "/app/signals", label: "Intent", icon: IconSales },
+  { href: "/app/research", label: "リサーチ", icon: IconSales },
+  { href: "/app/sequences", label: "Sequences", icon: IconSales },
+  { href: "/app/outreach", label: "Outreach", icon: IconSales },
+  { href: "/app/inbox", label: "Inbox", icon: IconSales },
+  { href: "/app/negotiation", label: "交渉", icon: IconSales },
+  { href: "/app/meetings", label: "商談", icon: IconMeetings },
+  { href: "/app/proposals", label: "提案 / 見積", icon: IconProposals },
   { href: "/app/deals", label: "Deals", icon: IconDeals },
   { href: "/app/followups", label: "Follow-ups", icon: IconFollowups },
+  { href: "/app/sales", label: "AI Actions", icon: IconSales },
+  { href: "/app/integrations", label: "連携", icon: IconSettings },
   { href: "/app/revops", label: "RevOps", icon: IconRevops },
-  { href: "/app/settings", label: "Settings", icon: IconSettings },
+  { href: "/app/settings", label: "設定", icon: IconSettings },
 ] as const;
 
 const MOBILE_PRIMARY = [
   NAV[0],
   NAV[1],
-  NAV[6],
-  NAV[9],
+  NAV[14],
+  NAV[13],
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
@@ -88,12 +91,12 @@ export function SalesAppShell({ children }: { children: ReactNode }) {
                   {APP_NAME}
                 </span>
                 <span className="block text-[11px] text-muted">
-                  PriceSense Sales
+                  AI営業部
                 </span>
               </span>
             </Link>
           </div>
-          <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="AI髯懈ｻゑｽｽ・ｶ髫ｶ魃会ｽｽ・ｭ鬯ｩ蟷｢・ｽ・ｨ驛｢譎｢・ｽ・｡驛｢譏懶ｽｹ譁溽､ｼ・ｹ譎｢・ｽ・ｼ">
+          <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3" aria-label="AI営業ワークスペース">
             {NAV.map((item) => {
               const active = isActive(pathname, item.href);
               const Icon = item.icon;
@@ -114,7 +117,8 @@ export function SalesAppShell({ children }: { children: ReactNode }) {
             })}
           </nav>
           <p className="px-5 pb-5 text-[11px] leading-relaxed text-muted">
-            AI驍ｵ・ｺ繝ｻ・ｯ髫ｰ・ｰ陷郁肩・ｽ・｡陋ｹ・ｻ遶擾ｽｪ驍ｵ・ｺ繝ｻ・ｧ驍ｵ・ｲ郢ｧ繝ｻ・ｽ・･鬩｢謳ｾ・ｽ・ｴ郢晢ｽｻ郢晢ｽｻ髣憺屮・ｽ・｡髫ｴ・ｬ繝ｻ・ｼ驛｢譎｢・ｽ・ｻ髯樊ｺｷ・､諷壼､撰ｽｨ・ｾ繝ｻ・｣鬩搾ｽｨ繝ｻ・｡驍ｵ・ｺ繝ｻ・ｯ髣費｣ｰ繝ｻ・ｺ鬯ｮ・｢髦ｮ蜷ｮﾂ・ｲ鬩墓慣・ｽ・ｺ鬮ｫ・ｱ鬮ｦ・ｪ繝ｻ・ｰ驍ｵ・ｺ繝ｻ・ｦ驍ｵ・ｺ闕ｵ譎｢・ｽ闃ｽ讌懆ｲ・ｽｯ繝ｻ・｡陟暮ｯ会ｽｼ・ｰ驍ｵ・ｺ繝ｻ・ｾ驍ｵ・ｺ陷ｷ・ｶ・つ郢晢ｽｻ          </p>
+            AIは提案まで、送信・金額・成約・引き継ぎは人間が確定します。
+          </p>
         </aside>
 
         <div className="min-w-0 flex-1 pb-24 lg:pb-0">
@@ -123,7 +127,7 @@ export function SalesAppShell({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 className="rounded-lg border border-border p-2 text-muted lg:hidden"
-                aria-label="Open menu"
+                aria-label="メニューを開く"
                 onClick={() => setMenuOpen(true)}
               >
                 <IconMenu className="h-5 w-5" />
@@ -134,18 +138,18 @@ export function SalesAppShell({ children }: { children: ReactNode }) {
               >
                 {APP_NAME}
               </Link>
-              <p className="hidden text-sm text-muted lg:block">髣碑崟・ｰ螟ｧ・ｾ迢暦ｽｹ・ｧ郢晢ｽｻ繝ｻ迢暦ｽｸ・ｺ髦ｮ蜷ｮ繝ｻ</p>
+              <p className="hidden text-sm text-muted lg:block">AI営業部ワークスペース</p>
               <form
                 onSubmit={onSearch}
                 className="ml-auto hidden min-w-0 flex-1 items-center gap-2 md:flex lg:max-w-md"
               >
                 <label className="relative block w-full">
-                  <span className="sr-only">Lead驛｢・ｧ陷ｻ闌ｨ・ｽ・､隲帙・・ｽ・ｴ繝ｻ・｢</span>
+                  <span className="sr-only">Lead / Emailを検索</span>
                   <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
                   <input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Lead / Email 驛｢・ｧ陷ｻ闌ｨ・ｽ・､隲帙・・ｽ・ｴ繝ｻ・｢"
+                    placeholder="Lead / Emailを検索"
                     className="w-full rounded-lg border border-border bg-surface px-9 py-2 text-sm outline-none focus:border-accent"
                   />
                 </label>
@@ -153,33 +157,33 @@ export function SalesAppShell({ children }: { children: ReactNode }) {
               <Link
                 href="/app/followups"
                 className="ml-auto rounded-lg border border-border p-2 text-muted hover:text-foreground md:ml-0"
-                aria-label="驛｢譎・ｽｼ譁青ｰ驛｢譎｢・ｽ・ｭ驛｢譎｢・ｽ・ｼ驛｢・ｧ繝ｻ・｢驛｢譏ｴ繝ｻ郢晢ｽｻ"
+                aria-label="Follow-ups"
               >
                 <IconBell className="h-4 w-4" />
               </Link>
               <Link
                 href="/app/meetings"
                 className="hidden rounded-lg border border-border p-2 text-muted hover:text-foreground sm:inline-flex"
-                aria-label="Open meetings"
+                aria-label="商談一覧を開く"
               >
                 <IconCalendar className="h-4 w-4" />
               </Link>
               <Link
                 href="/app/settings"
                 className="rounded-lg border border-border p-2 text-muted hover:text-foreground"
-                aria-label="Open settings"
+                aria-label="設定を開く"
               >
                 <IconUser className="h-4 w-4" />
               </Link>
             </div>
             <form onSubmit={onSearch} className="mt-3 md:hidden">
               <label className="relative block">
-                <span className="sr-only">Lead驛｢・ｧ陷ｻ闌ｨ・ｽ・､隲帙・・ｽ・ｴ繝ｻ・｢</span>
+                <span className="sr-only">Lead / Emailを検索</span>
                 <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Lead / Email 驛｢・ｧ陷ｻ闌ｨ・ｽ・､隲帙・・ｽ・ｴ繝ｻ・｢"
+                  placeholder="Lead / Emailを検索"
                   className="w-full rounded-lg border border-border bg-surface px-9 py-2 text-sm outline-none focus:border-accent"
                 />
               </label>
@@ -194,22 +198,22 @@ export function SalesAppShell({ children }: { children: ReactNode }) {
           <button
             type="button"
             className="absolute inset-0 bg-black/60"
-            aria-label="Close menu overlay"
+            aria-label="メニューを閉じる"
             onClick={() => setMenuOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 w-72 border-r border-border bg-background p-4">
+          <div className="absolute inset-y-0 left-0 w-72 overflow-y-auto border-r border-border bg-background p-4">
             <div className="mb-4 flex items-center justify-between">
               <p className="font-display text-lg">{APP_NAME}</p>
               <button
                 type="button"
                 className="rounded-lg border border-border p-2 text-muted"
-                aria-label="Close menu"
+                aria-label="メニューを閉じる"
                 onClick={() => setMenuOpen(false)}
               >
                 <IconClose className="h-4 w-4" />
               </button>
             </div>
-            <nav className="flex flex-col gap-1" aria-label="驛｢譎｢・ｽ・｢驛｢譎√・邵ｺ繝ｻ・ｹ譎｢・ｽ・ｫ驛｢譎｢・ｽ・｡驛｢譏懶ｽｹ譁溽､ｼ・ｹ譎｢・ｽ・ｼ">
+            <nav className="flex flex-col gap-1" aria-label="AI営業ワークスペース">
               {NAV.map((item) => {
                 const active = isActive(pathname, item.href);
                 const Icon = item.icon;
@@ -234,7 +238,7 @@ export function SalesAppShell({ children }: { children: ReactNode }) {
 
       <nav
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/95 backdrop-blur lg:hidden"
-        aria-label="驛｢譎｢・ｽ・｢驛｢譎√・邵ｺ繝ｻ・ｹ譎｢・ｽ・ｫ髣包ｽｳ繝ｻ・ｻ鬮ｫ陬懊・・朱豪・ｹ譏懶ｽｹ譁溽､ｼ・ｹ譎｢・ｽ・ｼ"
+        aria-label="モバイル主要メニュー"
       >
         <ul className="grid grid-cols-5">
           {MOBILE_PRIMARY.map((item) => {
@@ -259,9 +263,10 @@ export function SalesAppShell({ children }: { children: ReactNode }) {
               type="button"
               onClick={() => setMenuOpen(true)}
               className="flex min-h-14 w-full flex-col items-center justify-center gap-1 px-1 text-[10px] text-muted"
+              aria-label="メニューを開く"
             >
               <IconMenu className="h-4 w-4" />
-              驛｢譎｢・ｽ・｡驛｢譏懶ｽｹ譁溽､ｼ・ｹ譎｢・ｽ・ｼ
+              メニュー
             </button>
           </li>
         </ul>

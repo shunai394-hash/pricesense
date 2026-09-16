@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAdminToken } from "@/hooks/useAdminToken";
 import { AdminSessionBar } from "@/components/sales/AdminSessionBar";
 import {
@@ -27,6 +27,7 @@ interface Prospect {
   last_activity_at: string | null;
   next_action: string | null;
   next_action_at: string | null;
+  lead_id?: string | null;
   company: {
     id: string;
     name: string;
@@ -81,7 +82,10 @@ export function ProspectsDirectory() {
   const [status, setStatus] = useState("all");
   const [priority, setPriority] = useState("all");
 
-  const load = async () => {
+  const [acting, setActing] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
     if (!token) {
       setUnauthorized(true);
       setError("Admin tokenを入力してください。");
@@ -124,13 +128,13 @@ export function ProspectsDirectory() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [persist, token]);
 
   useEffect(() => {
     if (ready && token) {
       void load();
     }
-  }, [ready, token]);
+  }, [ready, token, load]);
 
   const statuses = useMemo(
     () => [...new Set(prospects.map((item) => item.status))].sort(),
@@ -191,6 +195,12 @@ export function ProspectsDirectory() {
         <div className="mb-6">
           <ErrorState message={error} />
         </div>
+      ) : null}
+
+      {notice ? (
+        <p className="mb-6 rounded-lg border border-accent/40 bg-accent/10 px-4 py-3 text-sm">
+          {notice}
+        </p>
       ) : null}
 
       {loading ? (
@@ -264,6 +274,7 @@ export function ProspectsDirectory() {
                   <Th>Status</Th>
                   <Th>次のアクション</Th>
                   <Th>最終活動</Th>
+                  <Th>操作</Th>
                 </tr>
               </thead>
               <tbody>
@@ -301,10 +312,146 @@ export function ProspectsDirectory() {
                     <Td>{prospect.status}</Td>
                     <Td className="max-w-[240px]">
                       <div className="line-clamp-2">
-                        {prospect.next_action || "AIで次アクションを決定"}
+                        {prospect.next_action || "未設定"}
                       </div>
                     </Td>
                     <Td>{formatDate(prospect.last_activity_at)}</Td>
+                    <Td>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={Boolean(acting)}
+                          className="rounded-md border border-border px-2 py-1 text-xs disabled:opacity-40"
+                          onClick={async () => {
+                            setActing(prospect.id);
+                            setNotice(null);
+                            setError(null);
+                            try {
+                              const response = await fetch("/api/sales/outreach", {
+                                method: "POST",
+                                headers: {
+                                  Authorization: `Bearer ${token}`,
+                                  "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                  prospect_id: prospect.id,
+                                  kind: "initial",
+                                }),
+                              });
+                              const payload = await response.json();
+                              if (!response.ok) {
+                                throw new Error(payload.error || "Outreach failed");
+                              }
+                              setNotice(
+                                payload.duplicate
+                                  ? "同じ下書きがあるため作成をスキップしました。"
+                                  : "初回メール下書きを保存しました（未送信）。"
+                              );
+                              await load();
+                            } catch (actionError) {
+                              setError(
+                                actionError instanceof Error
+                                  ? actionError.message
+                                  : "Outreachに失敗しました。"
+                              );
+                            } finally {
+                              setActing(null);
+                            }
+                          }}
+                        >
+                          メール下書き
+                        </button>
+                        <button
+                          type="button"
+                          disabled={Boolean(acting)}
+                          className="rounded-md border border-border px-2 py-1 text-xs disabled:opacity-40"
+                          onClick={async () => {
+                            setActing(`research-${prospect.id}`);
+                            setNotice(null);
+                            setError(null);
+                            try {
+                              const response = await fetch("/api/sales/research", {
+                                method: "POST",
+                                headers: {
+                                  Authorization: `Bearer ${token}`,
+                                  "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                  company_id: prospect.company?.id,
+                                }),
+                              });
+                              const payload = await response.json();
+                              if (!response.ok) {
+                                throw new Error(payload.error || "Research failed");
+                              }
+                              setNotice(
+                                payload.usedAi
+                                  ? "AIリサーチを保存しました。"
+                                  : "確認済み事実のリサーチを保存しました。"
+                              );
+                            } catch (actionError) {
+                              setError(
+                                actionError instanceof Error
+                                  ? actionError.message
+                                  : "リサーチに失敗しました。"
+                              );
+                            } finally {
+                              setActing(null);
+                            }
+                          }}
+                        >
+                          リサーチ
+                        </button>
+                        {prospect.lead_id ? (
+                          <a
+                            href={`/app/leads/${prospect.lead_id}`}
+                            className="rounded-md border border-border px-2 py-1 text-xs"
+                          >
+                            Lead
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={Boolean(acting)}
+                            className="rounded-md border border-border px-2 py-1 text-xs disabled:opacity-40"
+                            onClick={async () => {
+                              setActing(`promote-${prospect.id}`);
+                              setNotice(null);
+                              setError(null);
+                              try {
+                                const response = await fetch("/api/sales/prospects", {
+                                  method: "POST",
+                                  headers: {
+                                    Authorization: `Bearer ${token}`,
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    action: "promote",
+                                    prospect_id: prospect.id,
+                                  }),
+                                });
+                                const payload = await response.json();
+                                if (!response.ok) {
+                                  throw new Error(payload.error || "Promote failed");
+                                }
+                                setNotice("Leadを作成しました。");
+                                await load();
+                              } catch (actionError) {
+                                setError(
+                                  actionError instanceof Error
+                                    ? actionError.message
+                                    : "Lead化に失敗しました。"
+                                );
+                              } finally {
+                                setActing(null);
+                              }
+                            }}
+                          >
+                            Lead化
+                          </button>
+                        )}
+                      </div>
+                    </Td>
                   </tr>
                 ))}
               </tbody>

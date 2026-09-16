@@ -93,17 +93,13 @@ export async function POST(request: Request) {
         conversation: turn.conversation,
       };
 
-      if (turn.scored.escalationStatus === "handed_off") {
+      if (turn.scored.escalationStatus === "pending_human") {
         leadPatch.score = turn.scored.score;
-        leadPatch.escalation_status = turn.scored.escalationStatus;
+        leadPatch.escalation_status = lead.handed_off_at
+          ? "handed_off"
+          : turn.scored.escalationStatus;
         leadPatch.next_action = turn.scored.nextAction;
         leadPatch.model_version = turn.scored.modelVersion;
-        if (!lead.handed_off_at) {
-          leadPatch.handed_off_at = new Date().toISOString();
-        }
-        if (!lead.handoff_channel) {
-          leadPatch.handoff_channel = "ai_followup";
-        }
       }
 
       const { error: updateError } = await supabase
@@ -127,18 +123,12 @@ export async function POST(request: Request) {
     } else if (turn.skipReason === "handed_off") {
       const handoffPatch: Record<string, unknown> = {
         score: turn.scored.score,
-        escalation_status: turn.scored.escalationStatus,
+        escalation_status: lead.handed_off_at
+          ? "handed_off"
+          : turn.scored.escalationStatus,
         next_action: turn.scored.nextAction,
         model_version: turn.scored.modelVersion,
       };
-      if (turn.scored.escalationStatus === "handed_off") {
-        if (!lead.handed_off_at) {
-          handoffPatch.handed_off_at = new Date().toISOString();
-        }
-        if (!lead.handoff_channel) {
-          handoffPatch.handoff_channel = "ai_followup";
-        }
-      }
       const { error: handoffError } = await supabase
         .from("leads")
         .update(handoffPatch)

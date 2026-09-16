@@ -76,7 +76,7 @@ export const DEFAULT_OBJECTION_BANK: ObjectionDefinition[] = [
     type: "too_expensive",
     label: "価格が高い",
     description: "価格や費用対効果への懸念。",
-    keywords: ["高い", "価格", "費用", "予算に合わ", "コスト"],
+    keywords: ["高い", "価格", "費用", "予算に合わ", "コスト", "値引き", "割引"],
     enabled: true,
     fallbackReply:
       "ご懸念ありがとうございます。価格だけでなく、導入効果や社内での判断基準も含めて確認できればと思います。まず必要な条件をお聞かせいただけますでしょうか。",
@@ -85,7 +85,7 @@ export const DEFAULT_OBJECTION_BANK: ObjectionDefinition[] = [
     type: "think_it_over",
     label: "検討したい",
     description: "社内検討や時間を置くことを希望。",
-    keywords: ["検討", "考え", "持ち帰", "社内で", "また連絡"],
+    keywords: ["検討", "考え", "持ち帰", "社内で", "また連絡", "社内で検討", "一度持ち帰", "時期を見て"],
     enabled: true,
     fallbackReply:
       "承知しました。社内でのご検討に必要な情報を整理してお送りします。あわせて、次回確認させていただく時期だけ決めておけますでしょうか。",
@@ -94,7 +94,7 @@ export const DEFAULT_OBJECTION_BANK: ObjectionDefinition[] = [
     type: "competitor_X",
     label: "競合あり",
     description: "他社サービスや既存ベンダーとの比較。",
-    keywords: ["他社", "競合", "既存", "別の会社", "他のサービス"],
+    keywords: ["他社", "競合", "既存", "別の会社", "他のサービス", "他社とも比較"],
     enabled: true,
     fallbackReply:
       "承知しました。既存サービスとの比較になると思いますので、まず現在重視されている判断基準を確認させてください。",
@@ -103,7 +103,7 @@ export const DEFAULT_OBJECTION_BANK: ObjectionDefinition[] = [
     type: "no_budget",
     label: "予算なし",
     description: "現時点で予算が確保されていない。",
-    keywords: ["予算がない", "予算なし", "予算が取れ", "予算がないため", "budget"],
+    keywords: ["予算がない", "予算なし", "予算が取れ", "予算がないため", "budget", "予算がありません"],
     enabled: true,
     fallbackReply:
       "承知しました。現時点での予算状況を踏まえ、導入時期や社内計画を確認できればと思います。次に予算を検討される時期だけ教えていただけますでしょうか。",
@@ -112,7 +112,7 @@ export const DEFAULT_OBJECTION_BANK: ObjectionDefinition[] = [
     type: "no_need_now",
     label: "今は必要ない",
     description: "現時点では導入や相談の必要性が低い。",
-    keywords: ["必要ない", "今は不要", "今じゃない", "時期ではない", "まだ早い"],
+    keywords: ["必要ない", "今は不要", "今じゃない", "時期ではない", "まだ早い", "時期を見て検討"],
     enabled: true,
     fallbackReply:
       "承知しました。現時点では優先度が高くないとのことですね。今後必要になる可能性がある時期や条件だけ確認させていただけますでしょうか。",

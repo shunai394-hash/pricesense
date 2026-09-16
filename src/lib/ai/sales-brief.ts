@@ -583,15 +583,7 @@ export async function evaluateHandoff(input: {
     input.followupState ??
     emptyFollowupState(input.lead.id);
 
-  if (scored.escalationStatus !== "handed_off") {
-    return {
-      handoff: false,
-      scored,
-      brief: null,
-      followupState: followupBase,
-      record: null,
-    };
-  }
+  // Human-triggered handoff API is the confirmation. Scoring never auto-handoffs.
 
   const brief = await generateSalesBrief({
     lead: input.lead,

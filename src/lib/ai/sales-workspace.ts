@@ -156,6 +156,11 @@ export interface WorkspaceFollowupItem {
   followupCount: number | null;
   lastContactedAt: string | null;
   bucket: FollowupBucket;
+  who: string;
+  what: string;
+  when: string | null;
+  why: string;
+  stage: string;
 }
 
 export interface SalesWorkspaceCatalog {
@@ -337,6 +342,19 @@ export function buildSalesWorkspaceCatalog(input: {
           : null,
       lastContactedAt: followup?.last_contacted_at ?? null,
       bucket,
+      who: lead.email || lead.category_name || lead.id,
+      what:
+        deal?.next_action ||
+        lead.next_action ||
+        "次の確認事項を整理する",
+      when: nextFollowupAt,
+      why:
+        stopReason ||
+        (deal?.lost_reason ?? null) ||
+        (hasDeal ? "Dealの次確認" : "Leadの未完了フォロー"),
+      stage: hasDeal
+        ? `Deal / ${deal?.status ?? "open"}`
+        : lead.escalation_status || lead.next_action || "Lead",
     });
   }
 

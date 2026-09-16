@@ -240,6 +240,8 @@ export function SalesLeadWorkspace({
   const [lostReason, setLostReason] = useState<(typeof DEAL_LOST_REASONS)[number]>(
     "unknown"
   );
+  const [replyMessage, setReplyMessage] = useState("");
+  const [meetingNotes, setMeetingNotes] = useState("");
   const autoLoaded = useRef(false);
 
   useEffect(() => {
@@ -307,12 +309,13 @@ export function SalesLeadWorkspace({
     });
     const json = (await response.json()) as {
       success?: boolean;
+      ok?: boolean;
       error?: string;
       reply?: string;
       nextAction?: string;
       duplicate?: boolean;
     };
-    if (!response.ok || !json.success) {
+    if (!response.ok || json.success === false) {
       throw new Error(
         formatAdminClientError(
           json.error || `Request failed (${response.status})`,
@@ -556,6 +559,98 @@ export function SalesLeadWorkspace({
                 現在のAction対象ではありません（won / lost または対象外）。
               </p>
             )}
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <label className="block text-sm">
+                <span className="mb-1 block text-muted">顧客からの返信（保存のみ、送信しません）</span>
+                <textarea
+                  value={replyMessage}
+                  onChange={(event) => setReplyMessage(event.target.value)}
+                  className="min-h-24 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  placeholder="返信本文を貼り付けて AI返信案を生成"
+                />
+                <button
+                  type="button"
+                  disabled={Boolean(acting) || !replyMessage.trim()}
+                  onClick={() =>
+                    void runAction("reply", async () => {
+                      const result = await postJson("/api/ai/respond", {
+                        leadId,
+                        message: replyMessage,
+                      });
+                      setReplyMessage("");
+                      return result;
+                    })
+                  }
+                  className="mt-2 rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-40"
+                >
+                  {acting === "reply" ? "生成中…" : "AI返信案を生成"}
+                </button>
+              </label>
+              <label className="block text-sm">
+                <span className="mb-1 block text-muted">商談メモ（提案・見積ドラフトも同時作成）</span>
+                <textarea
+                  value={meetingNotes}
+                  onChange={(event) => setMeetingNotes(event.target.value)}
+                  className="min-h-24 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  placeholder="商談で確認した事実だけを記入"
+                />
+                <button
+                  type="button"
+                  disabled={Boolean(acting) || !meetingNotes.trim()}
+                  onClick={() =>
+                    void runAction("meeting", async () => {
+                      const result = await postJson("/api/ai/meeting", {
+                        leadId,
+                        rawNotes: meetingNotes,
+                      });
+                      setMeetingNotes("");
+                      return result;
+                    })
+                  }
+                  className="mt-2 rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-40"
+                >
+                  {acting === "meeting" ? "保存中…" : "商談メモを保存"}
+                </button>
+              </label>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={Boolean(acting)}
+                onClick={() =>
+                  void runAction("score", () =>
+                    postJson("/api/ai/score", { leadId })
+                  )
+                }
+                className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-40"
+              >
+                {acting === "score" ? "計算中…" : "スコア再計算"}
+              </button>
+              <button
+                type="button"
+                disabled={Boolean(acting)}
+                onClick={() =>
+                  void runAction("research", () =>
+                    postJson("/api/sales/research", { lead_id: leadId })
+                  )
+                }
+                className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-40"
+              >
+                {acting === "research" ? "実行中…" : "AIリサーチ"}
+              </button>
+              <button
+                type="button"
+                disabled={Boolean(acting)}
+                onClick={() =>
+                  void runAction("handoff", () =>
+                    postJson("/api/ai/handoff", { leadId })
+                  )
+                }
+                className="rounded-lg border border-border px-3 py-2 text-sm disabled:opacity-40"
+              >
+                {acting === "handoff" ? "実行中…" : "人間営業へ引き継ぐ"}
+              </button>
+            </div>
           </section>
 
           <Section title="Lead情報">

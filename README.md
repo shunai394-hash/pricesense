@@ -40,6 +40,10 @@ npm run dev
 | `STRIPE_PRICE_ID` | No | Premium月額プランの Price ID |
 | `AI_API_KEY` / `AI_BASE_URL` / `AI_MODEL` | No | OpenAI互換のサーバー専用設定。未設定時は決定論フォールバック |
 | `ADMIN_TOKEN` | No | 管理API・営業ワークスペース用。**未設定は fail closed（401）** |
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anon key（Googleログイン用。Service Roleではない） |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | No | Google Cloud OAuth Web Client。Supabase Auth Google Provider に設定。**クライアントに公開しない** |
+| `APOLLO_API_KEY` / `CLAY_API_KEY` / `INSTANTLY_API_KEY` / `SALES_MARKER_API_KEY` / `SANSAN_API_KEY` | No | 未設定時は「未接続」。架空データは出さない |
 | `NEXT_PUBLIC_LEGAL_*` | Yes | 特商法・プライバシー等の表示用運営者情報 |
 
 ---

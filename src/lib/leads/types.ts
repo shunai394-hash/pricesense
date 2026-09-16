@@ -1,6 +1,6 @@
 import type { DiagnosisLevel } from "@/lib/calculator";
 
-export type LeadSource = "pdf_export" | "premium_waitlist";
+export type LeadSource = "pdf_export" | "premium_waitlist" | "prospect";
 
 export type LeadDeliveryMode = "local_download" | "email";
 

@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { LeadRecord } from "@/lib/leads/types";
 import { getSupabaseConfig } from "@/lib/server/env";
+import { companyIdentityFromLead } from "@/lib/sales/company-identity";
 
 export interface PremiumSubscriptionRow {
   email: string;
@@ -55,11 +56,20 @@ const DUPLICATE_LEAD_WINDOW_MS = 24 * 60 * 60 * 1000;
 export async function insertLeadRecord(record: LeadRecord): Promise<void> {
   const supabase = getSupabaseAdmin();
 
+  const email = record.email.toLowerCase();
+  const identity = companyIdentityFromLead({
+    id: "pending",
+    email,
+    company_name: null,
+  });
+
   const row = {
     lead_source: record.leadSource,
-    email: record.email.toLowerCase(),
+    email,
     category_id: record.categoryId ?? null,
     category_name: record.categoryName ?? null,
+    company_name: identity.name === email ? null : identity.name,
+    industry: record.categoryName ?? null,
     user_rate: record.userRate ?? null,
     market_rate: record.marketRate ?? null,
     diagnosis_level: record.diagnosisLevel ?? null,
@@ -105,6 +115,16 @@ export async function insertLeadRecord(record: LeadRecord): Promise<void> {
       email: row.email,
     });
     throw new Error(`Failed to save lead: ${error.message}`);
+  }
+
+  try {
+    const { syncLeadsIntoSalesOs } = await import("@/lib/server/sales-os");
+    await syncLeadsIntoSalesOs();
+  } catch (syncError) {
+    console.error(
+      "[save-report] sales os sync skipped:",
+      syncError instanceof Error ? syncError.message : syncError
+    );
   }
 }
 

@@ -15,6 +15,7 @@ import {
 import { useAdminToken } from "@/hooks/useAdminToken";
 import { LEGAL_CONFIG, LEGAL_VERSIONS } from "@/lib/legal";
 import { APP_NAME } from "@/lib/sales/workspace-ui";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
 interface AccountResponse {
   isPremium?: boolean;
@@ -29,11 +30,41 @@ export function SettingsPanel() {
   const [accountError, setAccountError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sessionPresent, setSessionPresent] = useState(false);
+  const [googleEmail, setGoogleEmail] = useState<string | null>(null);
+  const [aiStatus, setAiStatus] = useState<string>("未確認");
 
   useEffect(() => {
     if (!ready) return;
     setSessionPresent(Boolean(token));
   }, [ready, token]);
+
+  useEffect(() => {
+    void supabaseBrowser.auth.getUser().then(({ data }) => {
+      setGoogleEmail(data.user?.email ?? null);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    void fetch("/api/sales/integrations", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const json = (await response.json()) as {
+          ai?: { configured?: boolean; model?: string | null };
+        };
+        setAiStatus(
+          json.ai?.configured
+            ? `設定済み${json.ai.model ? `（${json.ai.model}）` : ""}`
+            : "未設定"
+        );
+      })
+      .catch(() => {
+        setAiStatus("未確認");
+      });
+  }, [token]);
 
   const loadAccount = useCallback(async () => {
     const trimmed = email.trim();
@@ -75,6 +106,21 @@ export function SettingsPanel() {
       />
 
       <div className="space-y-6">
+        <Card>
+          <h2 className="font-display text-2xl">Googleログイン</h2>
+          <p className="mt-2 text-sm text-muted">
+            {googleEmail
+              ? `Googleアカウント ${googleEmail} で営業ワークスペースに入っています。`
+              : "Googleセッションが見つかりません。"}
+          </p>
+          <a
+            href="/auth/logout"
+            className="mt-3 inline-block rounded-lg border border-border px-4 py-2 text-sm"
+          >
+            ログアウト
+          </a>
+        </Card>
+
         <Card>
           <h2 className="font-display text-2xl">Account</h2>
           <p className="mt-2 text-sm text-muted">
@@ -129,7 +175,7 @@ export function SettingsPanel() {
             <div>
               <dt className="text-xs text-muted">AI assistance status</dt>
               <dd className="mt-1 flex items-center gap-2 text-sm">
-                提案のみ（実行はしない）
+                {aiStatus}
                 <Badge tone="ai">AI提案</Badge>
               </dd>
             </div>

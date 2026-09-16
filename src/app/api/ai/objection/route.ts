@@ -131,20 +131,11 @@ export async function POST(request: Request) {
       conversation: turn.conversation,
       intent_signals: turn.scored.intentSignals,
       score: turn.scored.score,
-      escalation_status: turn.scored.escalationStatus,
+      escalation_status: lead.handed_off_at ? "handed_off" : turn.scored.escalationStatus,
       next_action: turn.scored.nextAction,
       model_version: turn.scored.modelVersion,
       primary_objection: turn.scored.primaryObjection,
     };
-
-    if (turn.scored.escalationStatus === "handed_off") {
-      if (!lead.handed_off_at) {
-        patch.handed_off_at = new Date().toISOString();
-      }
-      if (!lead.handoff_channel) {
-        patch.handoff_channel = "ai_objection";
-      }
-    }
 
     const { error: updateError } = await supabase
       .from("leads")

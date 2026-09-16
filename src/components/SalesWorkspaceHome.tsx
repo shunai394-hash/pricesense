@@ -219,6 +219,31 @@ export function SalesWorkspaceHome() {
         <div className="mt-4">
           <AiHumanFlow />
         </div>
+        <p className="mt-4 text-xs leading-relaxed text-muted">
+          <Link href="/app/companies" className="text-accent">企業</Link>
+          {" → "}
+          <Link href="/app/research" className="text-accent">Research</Link>
+          {" → "}
+          <Link href="/app/signals" className="text-accent">Intent</Link>
+          {" → "}
+          <Link href="/app/prospects" className="text-accent">Prospect</Link>
+          {" → "}
+          <Link href="/app/outreach" className="text-accent">Outreach</Link>
+          {" → "}
+          <Link href="/app/inbox" className="text-accent">Inbox</Link>
+          {" → "}
+          <Link href="/app/meetings" className="text-accent">Meeting</Link>
+          {" → "}
+          <Link href="/app/proposals" className="text-accent">Proposal / Quote</Link>
+          {" → "}
+          <Link href="/app/negotiation" className="text-accent">Negotiation</Link>
+          {" → "}
+          <Link href="/app/deals" className="text-accent">Deal</Link>
+          {" → "}
+          <Link href="/app/followups" className="text-accent">Follow-up</Link>
+          {" → Handoff / Close。"}
+          AIは各ステップの提案まで行い、送信・金額・成約・引き継ぎは人が確定します。
+        </p>
       </header>
 
       <form

@@ -29,7 +29,7 @@ import { getSupabaseAdmin } from "@/lib/server/supabase";
 const PAGE_SIZE = 1000;
 
 const LEAD_COLUMNS =
-  "id, email, category_name, lead_source, score, escalation_status, next_action, conversation, created_at, handed_off_at";
+  "id, email, category_name, lead_source, score, escalation_status, next_action, conversation, created_at, handed_off_at, company_name";
 const DEAL_COLUMNS =
   "id, lead_id, meeting_id, proposal_id, quote_id, status, probability, expected_value, currency, next_action, next_followup_at, lost_reason, updated_at, created_at";
 const FOLLOWUP_COLUMNS =
@@ -207,6 +207,7 @@ export interface SalesOsProspectRow {
   last_activity_at: string | null;
   next_action: string | null;
   next_action_at: string | null;
+  lead_id: string | null;
   created_at: string;
   updated_at: string;
   company: {
@@ -250,6 +251,7 @@ export async function loadSalesOsProspects(): Promise<SalesOsProspectRow[]> {
       last_activity_at,
       next_action,
       next_action_at,
+      lead_id,
       created_at,
       updated_at,
       companies (
@@ -301,6 +303,7 @@ export async function loadSalesOsProspects(): Promise<SalesOsProspectRow[]> {
         typeof item.next_action === "string" ? item.next_action : null,
       next_action_at:
         typeof item.next_action_at === "string" ? item.next_action_at : null,
+      lead_id: item.lead_id ? String(item.lead_id) : null,
       created_at: String(item.created_at),
       updated_at: String(item.updated_at),
       company: (item.companies as SalesOsProspectRow["company"]) ?? null,

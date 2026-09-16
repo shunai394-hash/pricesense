@@ -17,6 +17,7 @@ export interface ConversationMessage {
  */
 export interface SalesLeadRow {
   id: string;
+  email?: string | null;
   category_name: string | null;
   user_rate: number | null;
   market_rate: number | null;

@@ -186,14 +186,12 @@ function resolveEscalationStatus(
   score: number,
   input: LeadScoreInput
 ): EscalationStatus {
-  if (input.meetingScheduled || score >= 85) {
-    return "handed_off";
-  }
-
+  // Scoring never auto-handoffs. High intent only recommends human review.
   if (
-    score >= 65 ||
+    input.meetingScheduled ||
+    input.meetingRequested ||
     input.replyReceived ||
-    input.meetingRequested
+    score >= 65
   ) {
     return "pending_human";
   }

@@ -1,7 +1,11 @@
 import type { DiagnosisLevel } from "@/lib/calculator";
 import type { LeadRecord } from "@/lib/leads/types";
 
-const VALID_LEAD_SOURCES = new Set(["pdf_export", "premium_waitlist"]);
+const VALID_LEAD_SOURCES = new Set([
+  "pdf_export",
+  "premium_waitlist",
+  "prospect",
+]);
 
 const VALID_DIAGNOSIS_LEVELS = new Set<DiagnosisLevel>([
   "significantly_low",

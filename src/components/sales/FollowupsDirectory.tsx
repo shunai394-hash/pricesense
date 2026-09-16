@@ -67,7 +67,7 @@ export function FollowupsDirectory() {
       <PageHeader
         eyebrow="AI営業部"
         title="Follow-ups"
-        description="期限到来の確認と停止状態を管理します。外部メールは自動送信しません。"
+        description="誰に・何を・いつ・なぜ・どの段階でフォローするかを表示します。外部メールは自動送信しません。"
       />
 
       <AdminSessionBar
@@ -121,12 +121,12 @@ export function FollowupsDirectory() {
               <thead>
                 <tr>
                   <Th>カテゴリ</Th>
-                  <Th>Lead</Th>
-                  <Th>Source</Th>
+                  <Th>誰に</Th>
+                  <Th>何を</Th>
+                  <Th>いつ</Th>
+                  <Th>なぜ</Th>
+                  <Th>段階</Th>
                   <Th>Status</Th>
-                  <Th>Next Follow-up</Th>
-                  <Th>Last contacted</Th>
-                  <Th>Stop reason</Th>
                 </tr>
               </thead>
               <tbody>
@@ -154,18 +154,19 @@ export function FollowupsDirectory() {
                         }
                         className="text-accent"
                       >
-                        {leadDisplayName({
-                          categoryName: item.categoryName,
-                          email: item.email,
-                          leadId: item.leadId,
-                        })}
+                        {item.who ||
+                          leadDisplayName({
+                            categoryName: item.categoryName,
+                            email: item.email,
+                            leadId: item.leadId,
+                          })}
                       </Link>
                     </Td>
-                    <Td>{item.source === "deal" ? "Deal" : "Lead"}</Td>
+                    <Td>{item.what || "—"}</Td>
+                    <Td>{formatUtc(item.when || item.nextFollowupAt)}</Td>
+                    <Td>{item.why || item.stopReason || "—"}</Td>
+                    <Td>{item.stage || (item.source === "deal" ? "Deal" : "Lead")}</Td>
                     <Td>{item.status || "—"}</Td>
-                    <Td>{formatUtc(item.nextFollowupAt)}</Td>
-                    <Td>{formatUtc(item.lastContactedAt)}</Td>
-                    <Td>{item.stopReason || "—"}</Td>
                   </tr>
                 ))}
               </tbody>

@@ -3,8 +3,8 @@ import { SalesActionsDashboard } from "@/components/SalesActionsDashboard";
 import { createPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = createPageMetadata({
-  title: "営業",
-  description: "今日やるべき営業アクション（AI営業部）",
+  title: "Sales Actions",
+  description: "AIが次に実行すべき営業アクションを整理します。",
   path: "/app/sales",
   noIndex: true,
 });

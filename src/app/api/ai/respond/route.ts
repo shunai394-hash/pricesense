@@ -19,7 +19,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const LEAD_COLUMNS =
-  "id, category_name, user_rate, market_rate, diagnosis_level, target_rate, intent_signals, conversation, handed_off_at, handoff_channel";
+  "id, email, category_name, user_rate, market_rate, diagnosis_level, target_rate, intent_signals, conversation, handed_off_at, handoff_channel, company_name, industry, employee_count, job_title, department, seniority, decision_maker, decision_maker_distance, existing_relationship, reply_received, meeting_requested, meeting_scheduled, primary_objection";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -128,20 +128,11 @@ export async function POST(request: Request) {
       conversation,
       intent_signals: scored.intentSignals,
       score: scored.score,
-      escalation_status: scored.escalationStatus,
+      escalation_status: lead.handed_off_at ? "handed_off" : scored.escalationStatus,
       next_action: scored.nextAction,
       model_version: scored.modelVersion,
       primary_objection: scored.primaryObjection,
     };
-
-    if (scored.escalationStatus === "handed_off") {
-      if (!lead.handed_off_at) {
-        patch.handed_off_at = new Date().toISOString();
-      }
-      if (!lead.handoff_channel) {
-        patch.handoff_channel = "ai_respond";
-      }
-    }
 
     const { error: updateError } = await supabase
       .from("leads")
