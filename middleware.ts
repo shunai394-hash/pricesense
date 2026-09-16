@@ -2,11 +2,16 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PROTECTED_PREFIXES = ["/app", "/admin"];
+const AUTH_PAGES = ["/login", "/signup", "/forgot-password"];
 
 function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );
+}
+
+function isAuthPage(pathname: string): boolean {
+  return AUTH_PAGES.includes(pathname);
 }
 
 export async function middleware(request: NextRequest) {
@@ -55,7 +60,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(login);
   }
 
-  if (pathname === "/login" && user) {
+  if (isAuthPage(pathname) && user) {
     const app = request.nextUrl.clone();
     app.pathname = "/app";
     app.search = "";
@@ -66,5 +71,14 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/app", "/app/:path*", "/admin", "/admin/:path*", "/login"],
+  matcher: [
+    "/app",
+    "/app/:path*",
+    "/admin",
+    "/admin/:path*",
+    "/login",
+    "/signup",
+    "/forgot-password",
+    "/reset-password",
+  ],
 };

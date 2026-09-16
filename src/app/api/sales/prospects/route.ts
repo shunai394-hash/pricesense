@@ -117,6 +117,18 @@ export async function POST(request: Request) {
       const { error: updateError } = await supabase
         .from("prospects")
         .update({
+          purchase_intent: japanSales.purchase_intent ?? null,
+          adoption_timing: japanSales.adoption_timing ?? null,
+          budget_notes: japanSales.budget_notes ?? null,
+          decision_maker: japanSales.decision_maker ?? null,
+          competitor: japanSales.competitor ?? null,
+          existing_relationship: japanSales.existing_relationship ?? null,
+          meeting_notes_ja: japanSales.meeting_notes_ja ?? null,
+          approval_status: japanSales.approval_status ?? null,
+          price_negotiation: japanSales.price_negotiation ?? null,
+          delivery_terms: japanSales.delivery_terms ?? null,
+          payment_terms: japanSales.payment_terms ?? null,
+          contract_terms: japanSales.contract_terms ?? null,
           metadata: { ...metadata, japan_sales: japanSales },
           updated_at: new Date().toISOString(),
         })

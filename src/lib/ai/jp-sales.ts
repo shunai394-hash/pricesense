@@ -80,6 +80,36 @@ const JP_PHRASES: JapanesePhraseMatch[] = [
     inboxClassification: "needs_human",
     suggestedNextAction: "決裁者への確認事項と日程を整理する。心理は断定しない",
   },
+  {
+    phrase: "稟議に回します",
+    category: "internal_approval",
+    inboxClassification: "needs_human",
+    suggestedNextAction: "稟議に必要な資料と決裁予定を確認する。心理は断定しない",
+  },
+  {
+    phrase: "数量を調整したい",
+    category: "quantity",
+    inboxClassification: "question",
+    suggestedNextAction: "必要数量と条件だけ確認する",
+  },
+  {
+    phrase: "納期が合いません",
+    category: "delivery",
+    inboxClassification: "question",
+    suggestedNextAction: "希望納期を確認する。未確認の約束はしない",
+  },
+  {
+    phrase: "支払条件を確認します",
+    category: "payment_terms",
+    inboxClassification: "question",
+    suggestedNextAction: "支払条件の確認事項を整理する",
+  },
+  {
+    phrase: "契約条件を確認します",
+    category: "contract_terms",
+    inboxClassification: "needs_human",
+    suggestedNextAction: "契約条件は人間が確認する",
+  },
 ];
 
 const EXTRA_RULES: Array<{

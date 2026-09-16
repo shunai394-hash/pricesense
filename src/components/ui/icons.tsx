@@ -237,3 +237,27 @@ export function IconSales(props: IconProps) {
     </BaseIcon>
   );
 }
+
+export function IconGlobe(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3a14 14 0 0 1 0 18" />
+      <path d="M12 3a14 14 0 0 0 0 18" />
+    </BaseIcon>
+  );
+}
+
+export function IconTower(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M12 3v4" />
+      <path d="M8 21h8" />
+      <path d="M9 7h6l1 4H8z" />
+      <path d="M9 11v10" />
+      <path d="M15 11v10" />
+      <path d="M12 11v10" />
+    </BaseIcon>
+  );
+}

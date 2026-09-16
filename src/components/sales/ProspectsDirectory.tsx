@@ -28,6 +28,17 @@ interface Prospect {
   next_action: string | null;
   next_action_at: string | null;
   lead_id?: string | null;
+  purchase_intent?: string | null;
+  adoption_timing?: string | null;
+  budget_notes?: string | null;
+  decision_maker?: string | null;
+  competitor?: string | null;
+  approval_status?: string | null;
+  price_negotiation?: string | null;
+  delivery_terms?: string | null;
+  payment_terms?: string | null;
+  contract_terms?: string | null;
+  meeting_notes_ja?: string | null;
   company: {
     id: string;
     name: string;
@@ -84,6 +95,20 @@ export function ProspectsDirectory() {
 
   const [acting, setActing] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [japanProspectId, setJapanProspectId] = useState<string | null>(null);
+  const [japanDraft, setJapanDraft] = useState({
+    approval_status: "",
+    decision_maker: "",
+    purchase_intent: "",
+    adoption_timing: "",
+    budget_notes: "",
+    competitor: "",
+    price_negotiation: "",
+    delivery_terms: "",
+    payment_terms: "",
+    contract_terms: "",
+    meeting_notes_ja: "",
+  });
 
   const load = useCallback(async () => {
     if (!token) {
@@ -450,6 +475,28 @@ export function ProspectsDirectory() {
                             Lead化
                           </button>
                         )}
+                        <button
+                          type="button"
+                          className="rounded-md border border-border px-2 py-1 text-xs"
+                          onClick={() => {
+                            setJapanProspectId(prospect.id);
+                            setJapanDraft({
+                              approval_status: prospect.approval_status ?? "",
+                              decision_maker: prospect.decision_maker ?? "",
+                              purchase_intent: prospect.purchase_intent ?? "",
+                              adoption_timing: prospect.adoption_timing ?? "",
+                              budget_notes: prospect.budget_notes ?? "",
+                              competitor: prospect.competitor ?? "",
+                              price_negotiation: prospect.price_negotiation ?? "",
+                              delivery_terms: prospect.delivery_terms ?? "",
+                              payment_terms: prospect.payment_terms ?? "",
+                              contract_terms: prospect.contract_terms ?? "",
+                              meeting_notes_ja: prospect.meeting_notes_ja ?? "",
+                            });
+                          }}
+                        >
+                          日本営業
+                        </button>
                       </div>
                     </Td>
                   </tr>
@@ -457,6 +504,112 @@ export function ProspectsDirectory() {
               </tbody>
             </TableWrap>
           )}
+
+          {japanProspectId ? (
+            <form
+              className="grid gap-3 rounded-xl border border-border/80 bg-surface/50 p-4 md:grid-cols-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void (async () => {
+                  setActing("japan");
+                  setError(null);
+                  setNotice(null);
+                  try {
+                    const response = await fetch("/api/sales/prospects", {
+                      method: "POST",
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        action: "japan_update",
+                        prospect_id: japanProspectId,
+                        ...japanDraft,
+                      }),
+                    });
+                    const payload = await response.json();
+                    if (!response.ok) {
+                      throw new Error(payload.error || "更新に失敗しました");
+                    }
+                    setNotice(
+                      "日本企業向け営業情報を保存しました。相手の心理は断定していません。"
+                    );
+                    await load();
+                  } catch (saveError) {
+                    setError(
+                      saveError instanceof Error
+                        ? saveError.message
+                        : "日本営業情報の保存に失敗しました。"
+                    );
+                  } finally {
+                    setActing(null);
+                  }
+                })();
+              }}
+            >
+              <p className="md:col-span-2 text-sm text-muted">
+                社内検討 / 持ち帰り / 稟議 / 決裁者 / 予算 / 導入時期 / 競合比較 /
+                値引き / 数量 / 納期 / 支払条件 / 契約条件。未確認は空欄のままにします。
+              </p>
+              {(
+                [
+                  ["approval_status", "稟議 / 社内検討"],
+                  ["decision_maker", "決裁者"],
+                  ["purchase_intent", "導入意向（表現の記録）"],
+                  ["adoption_timing", "導入時期"],
+                  ["budget_notes", "予算"],
+                  ["competitor", "競合比較"],
+                  ["price_negotiation", "値引き / 価格"],
+                  ["delivery_terms", "納期"],
+                  ["payment_terms", "支払条件"],
+                  ["contract_terms", "契約条件"],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key} className="text-sm">
+                  <span className="mb-1 block text-muted">{label}</span>
+                  <input
+                    value={japanDraft[key]}
+                    onChange={(event) =>
+                      setJapanDraft((current) => ({
+                        ...current,
+                        [key]: event.target.value,
+                      }))
+                    }
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </label>
+              ))}
+              <label className="text-sm md:col-span-2">
+                <span className="mb-1 block text-muted">商談メモ（事実のみ）</span>
+                <textarea
+                  value={japanDraft.meeting_notes_ja}
+                  onChange={(event) =>
+                    setJapanDraft((current) => ({
+                      ...current,
+                      meeting_notes_ja: event.target.value,
+                    }))
+                  }
+                  className="min-h-24 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </label>
+              <div className="flex gap-2 md:col-span-2">
+                <button
+                  type="submit"
+                  disabled={Boolean(acting)}
+                  className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-background disabled:opacity-40"
+                >
+                  {acting === "japan" ? "保存中…" : "日本営業情報を保存"}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-border px-4 py-2 text-sm"
+                  onClick={() => setJapanProspectId(null)}
+                >
+                  閉じる
+                </button>
+              </div>
+            </form>
+          ) : null}
         </div>
       ) : null}
     </div>

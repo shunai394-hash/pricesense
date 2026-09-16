@@ -244,6 +244,16 @@ export function SalesWorkspaceHome() {
           {" → Handoff / Close。"}
           AIは各ステップの提案まで行い、送信・金額・成約・引き継ぎは人が確定します。
         </p>
+        <p className="mt-2 text-xs leading-relaxed text-muted">
+          <Link href="/app/correspondents" className="text-accent">AI特派員</Link>
+          {" → "}
+          <Link href="/app/control-tower" className="text-accent">Control Tower</Link>
+          {" → "}
+          <Link href="/app/research" className="text-accent">共通Research</Link>
+          {" → "}
+          <Link href="/app/prospects" className="text-accent">営業機会</Link>
+          。AIはメールを自動送信しません。
+        </p>
       </header>
 
       <form

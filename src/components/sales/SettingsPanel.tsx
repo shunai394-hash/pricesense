@@ -31,6 +31,11 @@ export function SettingsPanel() {
   const [loading, setLoading] = useState(false);
   const [sessionPresent, setSessionPresent] = useState(false);
   const [googleEmail, setGoogleEmail] = useState<string | null>(null);
+  const [authProvider, setAuthProvider] = useState<string>("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordNotice, setPasswordNotice] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
   const [aiStatus, setAiStatus] = useState<string>("未確認");
 
   useEffect(() => {
@@ -41,6 +46,8 @@ export function SettingsPanel() {
   useEffect(() => {
     void supabaseBrowser.auth.getUser().then(({ data }) => {
       setGoogleEmail(data.user?.email ?? null);
+      const provider = data.user?.app_metadata?.provider;
+      setAuthProvider(typeof provider === "string" ? provider : "");
     });
   }, []);
 
@@ -107,11 +114,15 @@ export function SettingsPanel() {
 
       <div className="space-y-6">
         <Card>
-          <h2 className="font-display text-2xl">Googleログイン</h2>
+          <h2 className="font-display text-2xl">ログインアカウント</h2>
           <p className="mt-2 text-sm text-muted">
             {googleEmail
-              ? `Googleアカウント ${googleEmail} で営業ワークスペースに入っています。`
-              : "Googleセッションが見つかりません。"}
+              ? `${googleEmail} で営業ワークスペースに入っています。${
+                  authProvider === "google"
+                    ? "（Googleログイン）"
+                    : "（メールログイン）"
+                }`
+              : "ログインセッションが見つかりません。"}
           </p>
           <a
             href="/auth/logout"
@@ -122,9 +133,66 @@ export function SettingsPanel() {
         </Card>
 
         <Card>
+          <h2 className="font-display text-2xl">パスワード変更</h2>
+          <p className="mt-2 text-sm text-muted">
+            メール認証ユーザーはここでパスワードを変更できます。パスワード自体は独自DBへ保存しません。
+          </p>
+          <form
+            className="mt-4 space-y-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void (async () => {
+                setPasswordError("");
+                setPasswordNotice("");
+                if (newPassword.length < 8) {
+                  setPasswordError("パスワードは8文字以上にしてください。");
+                  return;
+                }
+                setPasswordSaving(true);
+                const { error } = await supabaseBrowser.auth.updateUser({
+                  password: newPassword,
+                });
+                setPasswordSaving(false);
+                if (error) {
+                  setPasswordError(
+                    "パスワードを更新できませんでした。メールログインのセッションが必要です。"
+                  );
+                  return;
+                }
+                setNewPassword("");
+                setPasswordNotice("パスワードを更新しました。");
+              })();
+            }}
+          >
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              placeholder="新しいパスワード"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+            <button
+              type="submit"
+              disabled={passwordSaving || !newPassword}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-background disabled:opacity-40"
+            >
+              {passwordSaving ? "更新中…" : "パスワードを変更"}
+            </button>
+          </form>
+          {passwordError ? (
+            <p className="mt-3 text-sm text-red-300">{passwordError}</p>
+          ) : null}
+          {passwordNotice ? (
+            <p className="mt-3 text-sm text-accent">{passwordNotice}</p>
+          ) : null}
+        </Card>
+
+        <Card>
           <h2 className="font-display text-2xl">Account</h2>
           <p className="mt-2 text-sm text-muted">
-            このワークスペースはパスワードログインではありません。管理者トークンで操作します。
+            このワークスペースの営業データ操作には管理者トークンが必要です。
+            ログイン（Google / メール）と管理者APIは別です。
             Premiumの状態は、登録済みメールがあれば既存APIで確認できます。
           </p>
           <label className="mt-4 block text-sm">

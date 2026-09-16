@@ -1,11 +1,24 @@
 import { getCompatibleAiConfig } from "@/lib/server/env";
 
+export type AiFailureKind =
+  | "timeout"
+  | "rate_limit"
+  | "quota"
+  | "empty_response"
+  | "invalid_json"
+  | "api_error"
+  | "not_configured";
+
 export class AiUnavailableError extends Error {
   readonly code = "AI_UNAVAILABLE";
+  readonly kind: AiFailureKind;
+  retryable = false;
+  retryAfterMs?: number;
 
-  constructor(message: string) {
+  constructor(message: string, kind: AiFailureKind = "api_error") {
     super(message);
     this.name = "AiUnavailableError";
+    this.kind = kind;
   }
 }
 
@@ -79,7 +92,7 @@ async function requestOnce(
 ): Promise<string> {
   const config = getCompatibleAiConfig();
   if (!config) {
-    throw new AiUnavailableError("AI API is not configured");
+    throw new AiUnavailableError("AI API is not configured", "not_configured");
   }
 
   const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -107,14 +120,28 @@ async function requestOnce(
     });
 
     if (!response.ok) {
+      let bodyText = "";
+      try {
+        bodyText = (await response.text()).slice(0, 400).toLowerCase();
+      } catch {
+        bodyText = "";
+      }
       const retryable = RETRYABLE_STATUS.has(response.status);
       const retryAfter = Number(response.headers.get("retry-after") ?? "");
+      const quota =
+        response.status === 429 &&
+        (bodyText.includes("insufficient_quota") || bodyText.includes("quota"));
+      const kind: AiFailureKind = quota
+        ? "quota"
+        : response.status === 429
+          ? "rate_limit"
+          : "api_error";
       const error = new AiUnavailableError(
-        `AI API returned ${response.status}`
+        `AI API returned ${response.status}`,
+        kind
       );
-      (error as AiUnavailableError & { retryable?: boolean; retryAfterMs?: number }).retryable =
-        retryable;
-      (error as AiUnavailableError & { retryable?: boolean; retryAfterMs?: number }).retryAfterMs =
+      error.retryable = retryable && kind !== "quota";
+      error.retryAfterMs =
         Number.isFinite(retryAfter) && retryAfter > 0
           ? retryAfter * 1000
           : attempt === 0
@@ -127,21 +154,28 @@ async function requestOnce(
     try {
       payload = await response.json();
     } catch {
-      throw new AiUnavailableError("AI API returned malformed JSON");
+      throw new AiUnavailableError(
+        "AI API returned malformed JSON",
+        "invalid_json"
+      );
     }
 
     const content = extractContent(payload);
     if (!content) {
-      throw new AiUnavailableError("AI API returned an empty response");
+      throw new AiUnavailableError(
+        "AI API returned an empty response",
+        "empty_response"
+      );
     }
     return content;
   } catch (error) {
     if (error instanceof AiUnavailableError) throw error;
     if (error instanceof Error && error.name === "AbortError") {
-      throw new AiUnavailableError("AI API timed out");
+      throw new AiUnavailableError("AI API timed out", "timeout");
     }
     throw new AiUnavailableError(
-      error instanceof Error ? error.message : "AI API request failed"
+      error instanceof Error ? error.message : "AI API request failed",
+      "api_error"
     );
   } finally {
     clearTimeout(timer);
@@ -158,12 +192,9 @@ export async function completeChatText(
     } catch (error) {
       lastError = error;
       const retryable =
-        error instanceof AiUnavailableError &&
-        (error as AiUnavailableError & { retryable?: boolean }).retryable;
+        error instanceof AiUnavailableError && error.retryable;
       if (!retryable || attempt === 1) break;
-      const wait =
-        (error as AiUnavailableError & { retryAfterMs?: number }).retryAfterMs ??
-        750;
+      const wait = error.retryAfterMs ?? 750;
       await sleep(wait);
     }
   }
@@ -175,19 +206,33 @@ export async function completeChatText(
 export async function completeChatJson<T>(
   input: ChatCompletionInput,
   fallback: T
-): Promise<{ data: T; usedFallback: boolean; raw: string | null }> {
+): Promise<{
+  data: T;
+  usedFallback: boolean;
+  raw: string | null;
+  failureKind: AiFailureKind | null;
+}> {
   try {
     const raw = await completeChatText({ ...input, json: true });
     const parsed = extractJsonObject(raw);
     if (!parsed || typeof parsed !== "object") {
-      return { data: fallback, usedFallback: true, raw };
+      return {
+        data: fallback,
+        usedFallback: true,
+        raw,
+        failureKind: "invalid_json",
+      };
     }
-    return { data: { ...fallback, ...(parsed as object) } as T, usedFallback: false, raw };
+    return {
+      data: { ...fallback, ...(parsed as object) } as T,
+      usedFallback: false,
+      raw,
+      failureKind: null,
+    };
   } catch (error) {
-    if (error instanceof AiUnavailableError) {
-      return { data: fallback, usedFallback: true, raw: null };
-    }
-    return { data: fallback, usedFallback: true, raw: null };
+    const failureKind =
+      error instanceof AiUnavailableError ? error.kind : "api_error";
+    return { data: fallback, usedFallback: true, raw: null, failureKind };
   }
 }
 

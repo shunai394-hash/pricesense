@@ -210,6 +210,17 @@ export interface SalesOsProspectRow {
   lead_id: string | null;
   created_at: string;
   updated_at: string;
+  purchase_intent: string | null;
+  adoption_timing: string | null;
+  budget_notes: string | null;
+  decision_maker: string | null;
+  competitor: string | null;
+  approval_status: string | null;
+  price_negotiation: string | null;
+  delivery_terms: string | null;
+  payment_terms: string | null;
+  contract_terms: string | null;
+  meeting_notes_ja: string | null;
   company: {
     id: string;
     name: string;
@@ -254,6 +265,18 @@ export async function loadSalesOsProspects(): Promise<SalesOsProspectRow[]> {
       lead_id,
       created_at,
       updated_at,
+      purchase_intent,
+      adoption_timing,
+      budget_notes,
+      decision_maker,
+      competitor,
+      approval_status,
+      price_negotiation,
+      delivery_terms,
+      payment_terms,
+      contract_terms,
+      meeting_notes_ja,
+      metadata,
       companies (
         id,
         name,
@@ -306,6 +329,29 @@ export async function loadSalesOsProspects(): Promise<SalesOsProspectRow[]> {
       lead_id: item.lead_id ? String(item.lead_id) : null,
       created_at: String(item.created_at),
       updated_at: String(item.updated_at),
+      purchase_intent:
+        typeof item.purchase_intent === "string" ? item.purchase_intent : null,
+      adoption_timing:
+        typeof item.adoption_timing === "string" ? item.adoption_timing : null,
+      budget_notes:
+        typeof item.budget_notes === "string" ? item.budget_notes : null,
+      decision_maker:
+        typeof item.decision_maker === "string" ? item.decision_maker : null,
+      competitor: typeof item.competitor === "string" ? item.competitor : null,
+      approval_status:
+        typeof item.approval_status === "string" ? item.approval_status : null,
+      price_negotiation:
+        typeof item.price_negotiation === "string"
+          ? item.price_negotiation
+          : null,
+      delivery_terms:
+        typeof item.delivery_terms === "string" ? item.delivery_terms : null,
+      payment_terms:
+        typeof item.payment_terms === "string" ? item.payment_terms : null,
+      contract_terms:
+        typeof item.contract_terms === "string" ? item.contract_terms : null,
+      meeting_notes_ja:
+        typeof item.meeting_notes_ja === "string" ? item.meeting_notes_ja : null,
       company: (item.companies as SalesOsProspectRow["company"]) ?? null,
       contact: (item.contacts as SalesOsProspectRow["contact"]) ?? null,
     };
