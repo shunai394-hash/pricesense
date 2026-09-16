@@ -144,6 +144,7 @@ export async function POST(request: Request) {
       ok: true,
       research: data,
       usedAi: draft.usedAi,
+      failureKind: draft.failureKind ?? null,
     });
   } catch (error) {
     console.error("[sales/research POST]", error instanceof Error ? error.message : error);

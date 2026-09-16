@@ -19,6 +19,7 @@ export interface CompanyResearchDraft {
   score: number | null;
   model: string | null;
   usedAi: boolean;
+  failureKind?: string | null;
 }
 
 function knownFacts(context: CompanyResearchContext): CompanyResearchDraft {
@@ -99,7 +100,7 @@ export async function generateCompanyResearch(
   const fallback = knownFacts(context);
   if (!isAiConfigured()) return fallback;
 
-  const { data, usedFallback } = await completeChatJson<CompanyResearchDraft>(
+  const { data, usedFallback, failureKind } = await completeChatJson<CompanyResearchDraft>(
     {
       system: [
         "あなたはPriceSenseのB2B営業リサーチャーです。",
@@ -160,5 +161,6 @@ export async function generateCompanyResearch(
       typeof data.score === "number" ? data.score : fallback.score,
     model: aiModelName(),
     usedAi: !usedFallback,
+    failureKind: usedFallback ? failureKind : null,
   };
 }

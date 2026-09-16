@@ -213,7 +213,19 @@ export async function completeChatJson<T>(
   failureKind: AiFailureKind | null;
 }> {
   try {
-    const raw = await completeChatText({ ...input, json: true });
+    let raw: string;
+    try {
+      raw = await completeChatText({ ...input, json: true });
+    } catch (error) {
+      if (
+        error instanceof AiUnavailableError &&
+        (error.kind === "api_error" || error.kind === "invalid_json")
+      ) {
+        raw = await completeChatText({ ...input, json: false });
+      } else {
+        throw error;
+      }
+    }
     const parsed = extractJsonObject(raw);
     if (!parsed || typeof parsed !== "object") {
       return {
