@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import { getAdminToken } from "@/lib/server/env";
+import { getAdminToken, getCronSecret } from "@/lib/server/env";
 
 function safeEqual(left: string, right: string): boolean {
   const a = Buffer.from(left);
@@ -31,4 +31,14 @@ export function isAdminRequest(request: Request): boolean {
   if (!presented) return false;
 
   return safeEqual(presented, expected);
+}
+
+/** Admin token or cron secret. Used by scheduled new-business discovery. */
+export function isOpsRequest(request: Request): boolean {
+  if (isAdminRequest(request)) return true;
+  const cronSecret = getCronSecret();
+  if (!cronSecret) return false;
+  const presented = presentedAdminToken(request);
+  if (!presented) return false;
+  return safeEqual(presented, cronSecret);
 }

@@ -267,3 +267,9 @@ export function getAdminToken(): string | null {
   const token = trimEnv(readEnv("ADMIN_TOKEN"));
   return token.length > 0 ? token : null;
 }
+
+/** Vercel Cron / scheduled new-business cycle. Unset = cron route fail-closed unless ADMIN_TOKEN is used. */
+export function getCronSecret(): string | null {
+  const token = trimEnv(readEnv("CRON_SECRET"));
+  return token.length > 0 ? token : null;
+}

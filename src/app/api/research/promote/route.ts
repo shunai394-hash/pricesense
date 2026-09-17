@@ -52,9 +52,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       consumer: "pricesense",
-      autoEmail: false,
-      notice: "Prospect / Intent / Research まで作成しました。営業メールは送信していません。",
       ...result,
+      autoEmail: false,
+      notice: "Account / Signal / Why Now / Qualification まで進めました。Lead化とメール送信はしていません。",
     });
   } catch (error) {
     return NextResponse.json(

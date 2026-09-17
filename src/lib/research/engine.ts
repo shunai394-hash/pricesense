@@ -203,6 +203,173 @@ async function upsertSource(item: FeedItem, region: string): Promise<{
   return { id: data.id, duplicate: false };
 }
 
+export async function ingestPublicFeedItem(input: {
+  correspondent: ResearchCorrespondent;
+  item: FeedItem;
+  runId?: string | null;
+  offeringId?: string | null;
+}): Promise<{
+  discoveryId: string | null;
+  duplicate: boolean;
+  usedAi: boolean;
+}> {
+  const supabase = getSupabaseAdmin();
+  const source = await upsertSource(input.item, input.correspondent.region_code);
+  const { data: existingDiscovery } = await supabase
+    .from("research_discoveries")
+    .select("id")
+    .eq("source_id", source.id)
+    .maybeSingle();
+  if (existingDiscovery?.id) {
+    return { discoveryId: existingDiscovery.id, duplicate: true, usedAi: false };
+  }
+
+  const interpreted = await interpretItem(input.correspondent, input.item);
+
+  const organizationId = interpreted.data.organizationName
+    ? await upsertOrganization({
+        name: interpreted.data.organizationName,
+        country: interpreted.data.country,
+        regionCode: input.correspondent.region_code,
+        sourceId: source.id,
+      })
+    : null;
+  const brandId = interpreted.data.brandName
+    ? await upsertBrand({
+        name: interpreted.data.brandName,
+        organizationId,
+        country: interpreted.data.country,
+        sourceId: source.id,
+      })
+    : null;
+  const productId = interpreted.data.productName
+    ? await upsertProduct({
+        name: interpreted.data.productName,
+        brandId,
+        organizationId,
+        sourceId: source.id,
+      })
+    : null;
+  const placeId = interpreted.data.placeName
+    ? await upsertPlace({
+        name: interpreted.data.placeName,
+        country: interpreted.data.country,
+        regionCode: input.correspondent.region_code,
+        sourceId: source.id,
+      })
+    : null;
+
+  const { data: signal } = await supabase
+    .from("research_signals")
+    .insert({
+      source_id: source.id,
+      organization_id: organizationId,
+      brand_id: brandId,
+      product_id: productId,
+      signal_type: interpreted.data.signalType,
+      title: input.item.title,
+      fact_text: interpreted.data.fact,
+      hypothesis: interpreted.data.hypothesis || null,
+      unknown: interpreted.data.unknown,
+      verification_status: "source_confirmed",
+      region_code: input.correspondent.region_code,
+      country: interpreted.data.country,
+      consumer_targets: interpreted.data.consumers,
+      strength: null,
+    })
+    .select("id")
+    .single();
+
+  const { data: discovery, error: discoveryError } = await supabase
+    .from("research_discoveries")
+    .insert({
+      correspondent_id: input.correspondent.id,
+      run_id: input.runId ?? null,
+      source_id: source.id,
+      title: input.item.title,
+      fact_text: interpreted.data.fact,
+      interpretation: interpreted.data.interpretation || null,
+      hypothesis: interpreted.data.hypothesis || null,
+      unknown: interpreted.data.unknown,
+      verification_status: "source_confirmed",
+      region_code: input.correspondent.region_code,
+      country: interpreted.data.country,
+      language: input.correspondent.region_code === "japan" ? "ja" : "en",
+      topics: input.correspondent.topics,
+      organization_id: organizationId,
+      brand_id: brandId,
+      product_id: productId,
+      place_id: placeId,
+      signal_id: signal?.id ?? null,
+      consumer_targets: interpreted.data.consumers,
+      pricesense_status: interpreted.data.consumers.includes("pricesense")
+        ? "available"
+        : "ignored",
+      newfind_status: interpreted.data.consumers.includes("newfind")
+        ? "available"
+        : "ignored",
+      needs_human_review: interpreted.data.needsHumanReview,
+      used_ai: interpreted.usedAi,
+      ai_model: interpreted.model,
+      offering_id: input.offeringId ?? null,
+      nbos_status: "pending",
+    })
+    .select("id")
+    .single();
+
+  if (discoveryError) throw new Error(discoveryError.message);
+
+  if (signal?.id) {
+    await supabase
+      .from("research_signals")
+      .update({ discovery_id: discovery.id })
+      .eq("id", signal.id);
+  }
+
+  if (organizationId && brandId) {
+    await addRelationship({
+      fromType: "brand",
+      fromId: brandId,
+      toType: "organization",
+      toId: organizationId,
+      relation: "owned_by",
+      sourceId: source.id,
+      discoveryId: discovery.id,
+      isHypothesis: true,
+    });
+  }
+  if (organizationId && placeId) {
+    await addRelationship({
+      fromType: "organization",
+      fromId: organizationId,
+      toType: "place",
+      toId: placeId,
+      relation: "located_in",
+      sourceId: source.id,
+      discoveryId: discovery.id,
+      isHypothesis: true,
+    });
+  }
+  if (productId && brandId) {
+    await addRelationship({
+      fromType: "product",
+      fromId: productId,
+      toType: "brand",
+      toId: brandId,
+      relation: "belongs_to",
+      sourceId: source.id,
+      discoveryId: discovery.id,
+      isHypothesis: true,
+    });
+  }
+
+  return {
+    discoveryId: discovery.id,
+    duplicate: false,
+    usedAi: interpreted.usedAi,
+  };
+}
+
 export async function runCorrespondent(
   correspondentId: string
 ): Promise<{
@@ -262,158 +429,17 @@ export async function runCorrespondent(
 
     for (const item of feed.items) {
       try {
-        const source = await upsertSource(item, correspondent.region_code);
-        const { data: existingDiscovery } = await supabase
-          .from("research_discoveries")
-          .select("id")
-          .eq("source_id", source.id)
-          .maybeSingle();
-        if (existingDiscovery?.id) {
+        const ingested = await ingestPublicFeedItem({
+          correspondent: correspondent as ResearchCorrespondent,
+          item,
+          runId: run.id,
+        });
+        if (ingested.duplicate) {
           duplicatesSkipped += 1;
           continue;
         }
-
-        const interpreted = await interpretItem(
-          correspondent as ResearchCorrespondent,
-          item
-        );
-        if (interpreted.usedAi) usedAi = true;
-
-        const organizationId = interpreted.data.organizationName
-          ? await upsertOrganization({
-              name: interpreted.data.organizationName,
-              country: interpreted.data.country,
-              regionCode: correspondent.region_code,
-              sourceId: source.id,
-            })
-          : null;
-        const brandId = interpreted.data.brandName
-          ? await upsertBrand({
-              name: interpreted.data.brandName,
-              organizationId,
-              country: interpreted.data.country,
-              sourceId: source.id,
-            })
-          : null;
-        const productId = interpreted.data.productName
-          ? await upsertProduct({
-              name: interpreted.data.productName,
-              brandId,
-              organizationId,
-              sourceId: source.id,
-            })
-          : null;
-        const placeId = interpreted.data.placeName
-          ? await upsertPlace({
-              name: interpreted.data.placeName,
-              country: interpreted.data.country,
-              regionCode: correspondent.region_code,
-              sourceId: source.id,
-            })
-          : null;
-
-        const { data: signal } = await supabase
-          .from("research_signals")
-          .insert({
-            source_id: source.id,
-            organization_id: organizationId,
-            brand_id: brandId,
-            product_id: productId,
-            signal_type: interpreted.data.signalType,
-            title: item.title,
-            fact_text: interpreted.data.fact,
-            hypothesis: interpreted.data.hypothesis || null,
-            unknown: interpreted.data.unknown,
-            verification_status: "source_confirmed",
-            region_code: correspondent.region_code,
-            country: interpreted.data.country,
-            consumer_targets: interpreted.data.consumers,
-            strength: null,
-          })
-          .select("id")
-          .single();
-
-        const { data: discovery, error: discoveryError } = await supabase
-          .from("research_discoveries")
-          .insert({
-            correspondent_id: correspondent.id,
-            run_id: run.id,
-            source_id: source.id,
-            title: item.title,
-            fact_text: interpreted.data.fact,
-            interpretation: interpreted.data.interpretation || null,
-            hypothesis: interpreted.data.hypothesis || null,
-            unknown: interpreted.data.unknown,
-            verification_status: "source_confirmed",
-            region_code: correspondent.region_code,
-            country: interpreted.data.country,
-            language: correspondent.region_code === "japan" ? "ja" : "en",
-            topics: correspondent.topics,
-            organization_id: organizationId,
-            brand_id: brandId,
-            product_id: productId,
-            place_id: placeId,
-            signal_id: signal?.id ?? null,
-            consumer_targets: interpreted.data.consumers,
-            pricesense_status: interpreted.data.consumers.includes("pricesense")
-              ? "available"
-              : "ignored",
-            newfind_status: interpreted.data.consumers.includes("newfind")
-              ? "available"
-              : "ignored",
-            needs_human_review: interpreted.data.needsHumanReview,
-            used_ai: interpreted.usedAi,
-            ai_model: interpreted.model,
-          })
-          .select("id")
-          .single();
-
-        if (discoveryError) throw new Error(discoveryError.message);
+        if (ingested.usedAi) usedAi = true;
         discoveriesCreated += 1;
-
-        if (signal?.id) {
-          await supabase
-            .from("research_signals")
-            .update({ discovery_id: discovery.id })
-            .eq("id", signal.id);
-        }
-
-        if (organizationId && brandId) {
-          await addRelationship({
-            fromType: "brand",
-            fromId: brandId,
-            toType: "organization",
-            toId: organizationId,
-            relation: "owned_by",
-            sourceId: source.id,
-            discoveryId: discovery.id,
-            isHypothesis: true,
-          });
-        }
-        if (organizationId && placeId) {
-          await addRelationship({
-            fromType: "organization",
-            fromId: organizationId,
-            toType: "place",
-            toId: placeId,
-            relation: "located_in",
-            sourceId: source.id,
-            discoveryId: discovery.id,
-            isHypothesis: true,
-          });
-        }
-        if (productId && brandId) {
-          await addRelationship({
-            fromType: "product",
-            fromId: productId,
-            toType: "brand",
-            toId: brandId,
-            relation: "belongs_to",
-            sourceId: source.id,
-            discoveryId: discovery.id,
-            isHypothesis: true,
-          });
-        }
       } catch (itemError) {
         errorCount += 1;
         errorMessage =

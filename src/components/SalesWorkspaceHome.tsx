@@ -205,30 +205,33 @@ export function SalesWorkspaceHome() {
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <header className="mb-8 border-b border-border/60 pb-6">
         <p className="text-xs uppercase tracking-[0.2em] text-accent">
-          AI営業部
+          AI新規開拓営業OS
         </p>
 
         <h1 className="mt-2 font-display text-4xl text-foreground">
-          今日の営業状況
+          今日の新規開拓と営業
         </h1>
 
         <p className="mt-2 max-w-2xl text-sm text-muted">
-          今日やるべき営業アクション、RevOps、監査情報をまとめて確認できます。
-          AIは提案を支援し、重要な判断や外部への営業連絡は人が確認します。
+          AIの主役は新規顧客開拓です。売りたいものを理解し、今その課題が起きている未接触企業を公開情報から探し、事実と仮説を分けて営業準備します。外部送信は人間承認が必須です。
         </p>
         <div className="mt-4">
           <AiHumanFlow />
         </div>
         <p className="mt-4 text-xs leading-relaxed text-muted">
-          <Link href="/app/companies" className="text-accent">企業</Link>
+          <Link href="/app/offerings" className="text-accent">Offering / ICP</Link>
+          {" → "}
+          <Link href="/app/discovery" className="text-accent">企業発見</Link>
           {" → "}
           <Link href="/app/research" className="text-accent">Research</Link>
           {" → "}
-          <Link href="/app/signals" className="text-accent">Intent</Link>
+          <Link href="/app/signals" className="text-accent">Buying Signal / Why Now</Link>
           {" → "}
-          <Link href="/app/prospects" className="text-accent">Prospect</Link>
+          <Link href="/app/prospects" className="text-accent">Qualification</Link>
           {" → "}
-          <Link href="/app/outreach" className="text-accent">Outreach</Link>
+          <Link href="/app/outreach" className="text-accent">Outreach下書き</Link>
+          {" → "}
+          <Link href="/app/leads" className="text-accent">Lead</Link>
           {" → "}
           <Link href="/app/inbox" className="text-accent">Inbox</Link>
           {" → "}
@@ -236,23 +239,8 @@ export function SalesWorkspaceHome() {
           {" → "}
           <Link href="/app/proposals" className="text-accent">Proposal / Quote</Link>
           {" → "}
-          <Link href="/app/negotiation" className="text-accent">Negotiation</Link>
-          {" → "}
           <Link href="/app/deals" className="text-accent">Deal</Link>
-          {" → "}
-          <Link href="/app/followups" className="text-accent">Follow-up</Link>
-          {" → Handoff / Close。"}
-          AIは各ステップの提案まで行い、送信・金額・成約・引き継ぎは人が確定します。
-        </p>
-        <p className="mt-2 text-xs leading-relaxed text-muted">
-          <Link href="/app/correspondents" className="text-accent">AI特派員</Link>
-          {" → "}
-          <Link href="/app/control-tower" className="text-accent">Control Tower</Link>
-          {" → "}
-          <Link href="/app/research" className="text-accent">共通Research</Link>
-          {" → "}
-          <Link href="/app/prospects" className="text-accent">営業機会</Link>
-          。AIはメールを自動送信しません。
+          {" → Learning。"}
         </p>
       </header>
 

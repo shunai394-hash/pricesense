@@ -27,14 +27,16 @@ import { APP_NAME } from "@/lib/sales/workspace-ui";
 
 const NAV = [
   { href: "/app", label: "AI営業部", icon: IconDashboard, group: "営業" },
+  { href: "/app/discovery", label: "新規開拓", icon: IconSparkles, group: "新規開拓" },
+  { href: "/app/offerings", label: "Offering / ICP", icon: IconSales, group: "新規開拓" },
   { href: "/app/correspondents", label: "AI特派員", icon: IconGlobe, group: "特派員" },
   { href: "/app/control-tower", label: "Control Tower", icon: IconTower, group: "特派員" },
   { href: "/app/research", label: "Research", icon: IconSales, group: "特派員" },
   { href: "/app/knowledge", label: "Knowledge", icon: IconGlobe, group: "特派員" },
-  { href: "/app/companies", label: "Companies", icon: IconLeads, group: "営業" },
+  { href: "/app/companies", label: "Accounts", icon: IconLeads, group: "営業" },
   { href: "/app/contacts", label: "担当者", icon: IconLeads, group: "営業" },
   { href: "/app/prospects", label: "Prospects", icon: IconLeads, group: "営業" },
-  { href: "/app/signals", label: "Intent", icon: IconSales, group: "営業" },
+  { href: "/app/signals", label: "Buying Signals", icon: IconSales, group: "営業" },
   { href: "/app/inbox", label: "Inbox", icon: IconSales, group: "営業" },
   { href: "/app/meetings", label: "Meetings", icon: IconMeetings, group: "営業" },
   { href: "/app/proposals", label: "Proposals", icon: IconProposals, group: "営業" },
@@ -51,13 +53,13 @@ const NAV = [
   { href: "/app/settings", label: "設定", icon: IconSettings, group: "基盤" },
 ] as const;
 
-const NAV_GROUPS = ["特派員", "営業", "基盤"] as const;
+const NAV_GROUPS = ["新規開拓", "特派員", "営業", "基盤"] as const;
 
 const MOBILE_PRIMARY = [
   NAV[0],
   NAV[1],
   NAV[2],
-  NAV[9],
+  NAV[11],
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
@@ -99,7 +101,7 @@ export function SalesAppShell({ children }: { children: ReactNode }) {
                   {APP_NAME}
                 </span>
                 <span className="block text-[11px] text-muted">
-                  AI営業部
+                  AI新規開拓営業OS
                 </span>
               </span>
             </Link>
@@ -153,7 +155,7 @@ export function SalesAppShell({ children }: { children: ReactNode }) {
               >
                 {APP_NAME}
               </Link>
-              <p className="hidden text-sm text-muted lg:block">AI営業部ワークスペース</p>
+              <p className="hidden text-sm text-muted lg:block">AI新規開拓営業OS</p>
               <form
                 onSubmit={onSearch}
                 className="ml-auto hidden min-w-0 flex-1 items-center gap-2 md:flex lg:max-w-md"

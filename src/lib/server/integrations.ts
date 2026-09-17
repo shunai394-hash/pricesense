@@ -110,7 +110,7 @@ export function getWorkspaceRuntimeStatus() {
     },
     googleAuth: {
       supabaseUrlConfigured: Boolean(trimEnv(process.env.NEXT_PUBLIC_SUPABASE_URL)),
-      anonKeyConfigured: Boolean(trimEnv(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)),
+      anonKeyConfigured: Boolean(trimEnv(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)),
       clientIdConfigured: Boolean(trimEnv(process.env.GOOGLE_CLIENT_ID)),
       clientSecretConfigured: Boolean(trimEnv(process.env.GOOGLE_CLIENT_SECRET)),
     },

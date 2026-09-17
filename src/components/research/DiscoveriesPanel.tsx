@@ -194,20 +194,20 @@ export function DiscoveriesPanel() {
                   </div>
                   <h2 className="mt-3 font-display text-xl">{item.title}</h2>
                   <p className="mt-2 text-sm">
-                    <span className="text-xs text-muted">Fact</span>
+                    <span className="text-xs uppercase tracking-wide text-accent">CONFIRMED FACT</span>
                     <br />
                     {item.fact_text}
                   </p>
                   {item.interpretation ? (
                     <p className="mt-2 text-sm text-muted">
-                      <span className="text-xs">AI interpretation</span>
+                      <span className="text-xs uppercase tracking-wide">AI INTERPRETATION（事実ではない）</span>
                       <br />
                       {item.interpretation}
                     </p>
                   ) : null}
                   {item.hypothesis ? (
                     <p className="mt-2 text-sm text-muted">
-                      <span className="text-xs">Hypothesis（事実ではない）</span>
+                      <span className="text-xs uppercase tracking-wide">AI HYPOTHESIS（事実ではない）</span>
                       <br />
                       {item.hypothesis}
                     </p>

@@ -360,7 +360,7 @@ export async function persistLeadIntentSignals(input: {
       signal_strength: strength,
       title:
         signalType === "lead_score"
-          ? `Leadスコア ${input.lead.score}`
+          ? `Lead驛｢・ｧ繝ｻ・ｹ驛｢・ｧ繝ｻ・ｳ驛｢・ｧ繝ｻ・｢ ${input.lead.score}`
           : signalType,
       description: input.lead.next_action,
       source: "lead",
@@ -419,7 +419,7 @@ export async function syncInboxFromLeadConversation(input: {
       contact_id: input.contactId,
       channel: "email",
       direction: "inbound",
-      subject: "Lead会話の返信",
+      subject: "Lead髣費ｽｨ陞溷･・ｽｽ・ｩ繝ｻ・ｱ驍ｵ・ｺ繝ｻ・ｮ鬮ｴ隨ｬ・ｯ雋ｻ・ｽ・ｿ繝ｻ・｡",
       body: message.content,
       status: "unread",
       received_at: message.createdAt,
@@ -444,37 +444,16 @@ export async function createManualCompany(input: {
   employeeCount?: number | null;
   websiteUrl?: string | null;
 }): Promise<{ id: string; created: boolean }> {
-  const supabase = getSupabaseAdmin();
-  const name = input.name.trim();
-  const domain = text(input.domain)?.toLowerCase() ?? null;
-
-  if (domain) {
-    const { data: existing } = await supabase
-      .from("companies")
-      .select("id")
-      .eq("domain", domain)
-      .maybeSingle();
-    if (existing?.id) return { id: existing.id, created: false };
-  }
-
-  const { data, error } = await supabase
-    .from("companies")
-    .insert({
-      name,
-      domain,
-      industry: text(input.industry),
-      location: text(input.location),
-      employee_count: input.employeeCount ?? null,
-      website_url: text(input.websiteUrl),
-      source: "manual",
-      source_id: domain ? `domain:${domain}` : `manual:${name.toLowerCase()}`,
-      data: { identity_key: domain ? `domain:${domain}` : `name:${name.toLowerCase()}` },
-    })
-    .select("id")
-    .single();
-
-  if (error) throw new Error(error.message);
-  return { id: data.id, created: true };
+  const { findOrCreateAccount } = await import("@/lib/nbos/accounts");
+  return findOrCreateAccount({
+    name: input.name,
+    domain: input.domain,
+    websiteUrl: input.websiteUrl,
+    industry: input.industry,
+    location: input.location,
+    employeeCount: input.employeeCount,
+    source: "manual",
+  });
 }
 
 export async function createManualContact(input: {
@@ -517,6 +496,46 @@ export async function createManualContact(input: {
   return { id: data.id, created: true };
 }
 
+export async function ensureCompanyOfferingProspect(input: {
+  companyId: string;
+  offeringId: string;
+}): Promise<{ id: string; created: boolean }> {
+  const supabase = getSupabaseAdmin();
+
+  const { data: existing, error: existingError } = await supabase
+    .from("prospects")
+    .select("id")
+    .eq("company_id", input.companyId)
+    .eq("offering_id", input.offeringId)
+    .eq("source", "nbos")
+    .is("lead_id", null)
+    .maybeSingle();
+
+  if (existingError) throw new Error(existingError.message);
+
+  if (existing?.id) {
+    return { id: existing.id, created: false };
+  }
+
+  const { data, error } = await supabase
+    .from("prospects")
+    .insert({
+      company_id: input.companyId,
+      offering_id: input.offeringId,
+      contact_id: null,
+      lead_id: null,
+      status: "new",
+      source: "nbos",
+      source_id: input.companyId,
+      priority: "normal",
+    })
+    .select("id")
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  return { id: data.id, created: true };
+}
 export async function ensureProspect(input: {
   companyId: string;
   contactId?: string | null;
@@ -600,9 +619,6 @@ export async function promoteProspectToLead(prospectId: string): Promise<{
     ? prospect.contacts[0]
     : prospect.contacts;
   const email = text(contact?.email);
-  if (!email) {
-    throw new Error("担当者メールがないため Lead を作成できません");
-  }
 
   const { data: lead, error: insertError } = await supabase
     .from("leads")
@@ -644,7 +660,7 @@ export async function ensureDefaultSequence(): Promise<{
   const { data: existing, error } = await supabase
     .from("sequences")
     .select("id")
-    .eq("name", "新規開拓 3ステップ")
+    .eq("name", "default_outreach_sequence")
     .maybeSingle();
 
   if (error) throw new Error(error.message);
@@ -653,9 +669,9 @@ export async function ensureDefaultSequence(): Promise<{
   const { data: sequence, error: insertError } = await supabase
     .from("sequences")
     .insert({
-      name: "新規開拓 3ステップ",
+      name: "default_outreach_sequence",
       description:
-        "初回メール → 3日後フォロー → 7日後フォロー。外部送信は人間承認後のみ。",
+        "AI-generated outreach sequence for new business prospects.",
       status: "draft",
       channel: "email",
       owner: "ai_sales",
@@ -669,20 +685,20 @@ export async function ensureDefaultSequence(): Promise<{
     {
       step_number: 1,
       delay_hours: 0,
-      subject_template: "ご挨拶 / {{company}}",
-      body_template: "初回の接点を作る短いメール。未確認の事実は書かない。",
+      subject_template: "Introduction to {{company}}",
+      body_template: "Hello, this is an introduction regarding {{company}}. We would like to share a relevant business opportunity and see whether it may be useful for your team.",
     },
     {
       step_number: 2,
       delay_hours: 72,
-      subject_template: "フォローアップ / {{company}}",
-      body_template: "前回の未返信に対する確認。値引きや未提示条件は約束しない。",
+      subject_template: "Following up with {{company}}",
+      body_template: "Hello, I am following up on my previous message regarding {{company}}. If this is relevant to your current priorities, I would be happy to provide more information.",
     },
     {
       step_number: 3,
       delay_hours: 168,
-      subject_template: "最終確認 / {{company}}",
-      body_template: "継続関心の有無を確認し、不要なら停止する。",
+      subject_template: "One more note for {{company}}",
+      body_template: "Hello, I wanted to send one final follow-up regarding {{company}}. Please feel free to reach out if you would like to discuss this further.",
     },
   ];
 
@@ -794,7 +810,7 @@ async function createSequenceOutreachDrafts(input: {
       contact_id: context?.contactId ?? null,
       channel: "email",
       direction: "outbound",
-      subject: draft?.subject ?? step.subject_template ?? "ご案内",
+      subject: draft?.subject ?? step.subject_template ?? "驍ｵ・ｺ騾搾ｽｲ繝ｻ・｡闔・･郢晢ｽｻ",
       body: `${draft?.body ?? step.body_template ?? ""}\n\n[idempotency:${idempotencyKey}]`,
       status: "draft",
     });
