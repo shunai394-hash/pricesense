@@ -1,8 +1,8 @@
-{
+﻿{
   "crons": [
     {
       "path": "/api/cron/nbos",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 3 * * *"
     }
   ]
 }
