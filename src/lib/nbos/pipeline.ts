@@ -1,4 +1,4 @@
-﻿import { generateCompanyResearch } from "@/lib/ai/sales-research";
+import { generateCompanyResearch } from "@/lib/ai/sales-research";
 import { generateOutboundPack } from "@/lib/ai/outbound-pack";
 import { explainQualification } from "@/lib/ai/qualify-account";
 import { generateWhyNow } from "@/lib/ai/why-now";
@@ -940,6 +940,25 @@ export async function approveOutreach(prospectId: string, actor = "human"): Prom
 export async function loadNewBusinessWorkspace() {
   const supabase = getSupabaseAdmin();
   const offering = await loadActiveOffering();
+
+  if (!offering) {
+    return {
+      offering: null,
+      counts: {
+        pursue: 0,
+        watch: 0,
+        investigate: 0,
+        disqualify: 0,
+        readyToContact: 0,
+      },
+      queue: [],
+      ready: [],
+      signals: [],
+      whyNow: [],
+      assessments: [],
+    };
+  }
+
   const [
     { data: queue },
     { data: ready },
@@ -957,19 +976,25 @@ export async function loadNewBusinessWorkspace() {
         companies ( id, name, domain, industry, account_status, country, last_researched_at, website_url )
       `
       )
+      .eq("offering_id", offering.id)
+      .eq("source", "nbos")
+      .is("lead_id", null)
       .order("last_activity_at", { ascending: false, nullsFirst: false })
       .limit(40),
     supabase
       .from("prospects")
       .select("id, ready_to_contact, pursue_decision, companies ( name )")
+      .eq("offering_id", offering.id)
+      .eq("source", "nbos")
+      .is("lead_id", null)
       .eq("ready_to_contact", true)
-      .order("last_activity_at", { ascending: false, nullsFirst: false })
       .limit(20),
     supabase
       .from("intent_signals")
       .select(
         "id, company_id, signal_type, title, fact_text, hypothesis, source, source_url, detected_at, first_seen_at, last_seen_at, expires_at, recency, confidence, evidence"
       )
+      .eq("offering_id", offering.id)
       .order("detected_at", { ascending: false })
       .limit(30),
     supabase
