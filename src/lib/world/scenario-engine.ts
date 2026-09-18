@@ -123,6 +123,13 @@ ${discussion}
     { scenarios: fallback },
   );
 
+  console.log("[world/scenario-engine] AI result:", JSON.stringify({
+    usedFallback: result.usedFallback,
+    failureKind: result.failureKind,
+    raw: result.raw,
+    data: result.data,
+  }, null, 2));
+
   const scenarios = Array.isArray(result.data.scenarios)
     ? result.data.scenarios
     : [];
@@ -154,6 +161,7 @@ ${discussion}
         : [],
     }));
 }
+
 
 
 
