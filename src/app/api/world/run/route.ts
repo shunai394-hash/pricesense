@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createWorldEvent } from "@/lib/world/events";
 import { runWorldSimulation } from "@/lib/world/world-engine";
 
@@ -64,9 +64,12 @@ export async function POST(request: Request) {
             ? body.eventType.trim()
             : "e2e_test",
         importance:
-          typeof body.importance === "number"
-            ? Math.max(0, Math.min(1, body.importance))
-            : 0.5,
+          body.importance === "low" ||
+          body.importance === "medium" ||
+          body.importance === "high" ||
+          body.importance === "critical"
+            ? body.importance
+            : "medium",
         metadata: {
           createdBy: "api/world/run",
           e2e: true,
