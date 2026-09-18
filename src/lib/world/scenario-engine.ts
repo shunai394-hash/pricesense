@@ -68,9 +68,13 @@ export async function generateWorldScenarios(input: {
 - 事実と推測を区別する
 - probabilityBandは予測上の相対的な強さを表すだけで、確定確率ではない
 - 投資助言ではなくシナリオ分析
-- affectedIndustriesには影響を受ける可能性のある業界
-- affectedEntitiesには影響を受ける可能性のある企業・組織・ブランド
-- 根拠のない企業名を作らない
+- affectedIndustriesには、このイベントによって影響を受ける可能性のある具体的な業界を記載する
+- affectedEntitiesには、議論やイベント本文に実際に登場する企業・組織・ブランド・サービスのうち、影響を受ける可能性があるものを記載する
+- affectedIndustriesは、イベント本文やAgent議論から合理的に判断できる場合は空配列にしない
+- affectedEntitiesは根拠がない企業名を絶対に創作しない
+- affectedEntitiesはAgent議論に実際に登場した名称を優先する
+- 営業・新規開拓への利用を想定し、このイベントによって新しい需要・課題・変化が発生する可能性のある業界を具体的に抽出する
+- 事実として確認できる対象と、シナリオ上影響を受ける可能性がある対象を混同しない
 - JSONのみ返す
 
 JSON:
@@ -150,3 +154,6 @@ ${discussion}
         : [],
     }));
 }
+
+
+
