@@ -12,18 +12,25 @@ const MARKETPLACE_META: Record<
   }
 > = {
   "yahoo-shopping-jp": {
-    name: "Yahoo!ショッピング",
+    name: "Yahoo!繧ｷ繝ｧ繝・ヴ繝ｳ繧ｰ",
     regionCode: "japan",
     countryCode: "JP",
     marketplaceType: "shopping",
     baseUrl: "https://shopping.yahoo.co.jp/",
   },
   "rakuten-jp": {
-    name: "楽天市場",
+    name: "讌ｽ螟ｩ蟶ょｴ",
     regionCode: "japan",
     countryCode: "JP",
     marketplaceType: "shopping",
     baseUrl: "https://www.rakuten.co.jp/",
+  },
+  "ebay-us": {
+    name: "eBay US",
+    regionCode: "north-america",
+    countryCode: "US",
+    marketplaceType: "marketplace",
+    baseUrl: "https://www.ebay.com/",
   },
 };
 

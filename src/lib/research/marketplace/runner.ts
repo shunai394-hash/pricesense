@@ -1,7 +1,8 @@
-﻿import { getSupabaseAdmin } from "@/lib/server/supabase";
+import { getSupabaseAdmin } from "@/lib/server/supabase";
 import { persistMarketplaceObservations } from "@/lib/research/marketplace/persist";
 import { yahooShoppingJpAdapter } from "@/lib/research/marketplace/yahoo-shopping-jp";
 import { rakutenJpAdapter } from "@/lib/research/marketplace/rakuten-jp";
+import { ebayUsAdapter } from "@/lib/research/marketplace/ebay";
 import type {
   MarketplaceAdapter,
   MarketplaceSearchResult,
@@ -10,6 +11,7 @@ import type {
 const ADAPTERS: MarketplaceAdapter[] = [
   yahooShoppingJpAdapter,
   rakutenJpAdapter,
+  ebayUsAdapter,
 ];
 
 export interface MarketplaceMonitorTarget {

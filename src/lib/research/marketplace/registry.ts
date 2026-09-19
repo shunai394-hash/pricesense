@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   MarketplaceAdapter,
   MarketplaceDefinition,
 } from "@/lib/research/marketplace/types";
@@ -39,6 +39,14 @@ const MARKETPLACES: MarketplaceDefinition[] = [
     marketplaceType: "retail",
     baseUrl: "https://www.amazon.co.jp/",
     adapterKey: "amazon-jp",
+  },  {
+    slug: "ebay-us",
+    name: "eBay US",
+    regionCode: "north-america",
+    countryCode: "US",
+    marketplaceType: "marketplace",
+    baseUrl: "https://www.ebay.com/",
+    adapterKey: "ebay-us",
   },
 ];
 
