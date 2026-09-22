@@ -9,6 +9,11 @@ import {
   isStripeConfigured,
   isSupabaseConfigured,
 } from "@/lib/server/env";
+import {
+  createEmailProofCookieValue,
+  EMAIL_PROOF_COOKIE_NAME,
+  EMAIL_PROOF_MAX_AGE_SECONDS,
+} from "@/lib/server/email-proof";
 import type Stripe from "stripe";
 
 export const runtime = "nodejs";
@@ -82,7 +87,23 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({ email, isPremium });
+    const response = NextResponse.json({ email, isPremium });
+
+    // Stripe has verified this is the real checkout customer's email, so
+    // this browser can be trusted to look up that email's premium status
+    // later without requiring Supabase Auth login.
+    const proof = createEmailProofCookieValue(email);
+    if (proof) {
+      response.cookies.set(EMAIL_PROOF_COOKIE_NAME, proof, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: EMAIL_PROOF_MAX_AGE_SECONDS,
+      });
+    }
+
+    return response;
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to verify checkout";

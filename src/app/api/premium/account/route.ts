@@ -10,8 +10,17 @@ import {
 } from "@/lib/server/supabase";
 import { getStripe } from "@/lib/server/stripe";
 import { isStripeConfigured, isSupabaseConfigured } from "@/lib/server/env";
+import { EMAIL_PROOF_COOKIE_NAME, verifyEmailProof } from "@/lib/server/email-proof";
 
 export const runtime = "nodejs";
+
+function readEmailProofCookie(request: Request): string | undefined {
+  return request.headers
+    .get("cookie")
+    ?.split("; ")
+    .find((c) => c.startsWith(`${EMAIL_PROOF_COOKIE_NAME}=`))
+    ?.slice(EMAIL_PROOF_COOKIE_NAME.length + 1);
+}
 
 export async function GET(request: Request) {
   if (!isSupabaseConfigured()) {
@@ -26,6 +35,17 @@ export async function GET(request: Request) {
   const email = normalizePremiumEmail(searchParams.get("email") ?? "");
 
   if (!email) {
+    return NextResponse.json({
+      isPremium: false,
+      plan: "free",
+      hasCustomerId: false,
+    });
+  }
+
+  // Require proof that this browser owns the requested email before doing
+  // any lookup -- this also blocks an unverified caller from forcing the
+  // live Stripe refresh + DB upsert below for an email they do not own.
+  if (!verifyEmailProof(readEmailProofCookie(request), email)) {
     return NextResponse.json({
       isPremium: false,
       plan: "free",

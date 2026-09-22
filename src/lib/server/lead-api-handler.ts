@@ -9,6 +9,31 @@ import {
   isSupabaseConfigured,
 } from "@/lib/server/env";
 import { publicErrorMessage } from "@/lib/server/public-error";
+import {
+  createEmailProofCookieValue,
+  EMAIL_PROOF_COOKIE_NAME,
+  EMAIL_PROOF_MAX_AGE_SECONDS,
+} from "@/lib/server/email-proof";
+
+function withEmailProofCookie(
+  response: NextResponse,
+  email: string
+): NextResponse {
+  // The visitor just submitted this email themselves via the diagnosis
+  // form, so this browser can be trusted to check that email's premium
+  // status later without requiring Supabase Auth login.
+  const proof = createEmailProofCookieValue(email);
+  if (proof) {
+    response.cookies.set(EMAIL_PROOF_COOKIE_NAME, proof, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: EMAIL_PROOF_MAX_AGE_SECONDS,
+    });
+  }
+  return response;
+}
 
 export async function handleLeadRegistrationPost(
   request: Request
@@ -66,7 +91,10 @@ export async function handleLeadRegistrationPost(
         }
       }
 
-      return NextResponse.json({ ok: true, deliveryMode });
+      return withEmailProofCookie(
+        NextResponse.json({ ok: true, deliveryMode }),
+        record.email
+      );
     }
 
     await insertLeadRecord(record);
@@ -92,7 +120,10 @@ export async function handleLeadRegistrationPost(
       }
     }
 
-    return NextResponse.json({ ok: true, deliveryMode });
+    return withEmailProofCookie(
+      NextResponse.json({ ok: true, deliveryMode }),
+      record.email
+    );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to register lead";

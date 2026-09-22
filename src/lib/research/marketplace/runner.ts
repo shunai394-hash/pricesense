@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "@/lib/server/supabase";
 import { persistMarketplaceObservations } from "@/lib/research/marketplace/persist";
+import { ingestMarketplaceItemsAsDiscoveries } from "@/lib/research/marketplace/discovery-bridge";
 import { yahooShoppingJpAdapter } from "@/lib/research/marketplace/yahoo-shopping-jp";
 import { rakutenJpAdapter } from "@/lib/research/marketplace/rakuten-jp";
 import { ebayUsAdapter } from "@/lib/research/marketplace/ebay";
@@ -27,10 +28,12 @@ export interface MarketplaceMonitorResult {
     marketplace: string;
     fetched: number;
     saved: number;
+    discoveriesCreated: number;
     error: string | null;
   }>;
   totalFetched: number;
   totalSaved: number;
+  totalDiscoveriesCreated: number;
   errors: number;
 }
 
@@ -65,12 +68,29 @@ export async function runMarketplaceMonitor(
       }
 
       let saved = 0;
+      let discoveriesCreated = 0;
 
       if (result.observations.length > 0) {
         try {
-          saved = await persistMarketplaceObservations(
+          const persisted = await persistMarketplaceObservations(
             result.observations
           );
+          saved = persisted.length;
+
+          try {
+            const ingested = await ingestMarketplaceItemsAsDiscoveries(
+              persisted
+            );
+            discoveriesCreated = ingested.created;
+          } catch (error) {
+            // Persistence already succeeded; a Discovery-bridge failure
+            // should not be reported as a fetch/save error.
+            console.error(
+              "[marketplace] discovery bridge failed",
+              adapter.definition.slug,
+              error
+            );
+          }
         } catch (error) {
           result.error =
             error instanceof Error
@@ -83,6 +103,7 @@ export async function runMarketplaceMonitor(
         marketplace: result.marketplace.name,
         fetched: result.fetched,
         saved,
+        discoveriesCreated,
         error: result.error,
       });
     }
@@ -96,6 +117,10 @@ export async function runMarketplaceMonitor(
       ),
       totalSaved: marketplaceResults.reduce(
         (sum, item) => sum + item.saved,
+        0
+      ),
+      totalDiscoveriesCreated: marketplaceResults.reduce(
+        (sum, item) => sum + item.discoveriesCreated,
         0
       ),
       errors: marketplaceResults.filter((item) => item.error).length,

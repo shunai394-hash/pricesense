@@ -182,6 +182,27 @@ export async function POST(request: Request) {
       sequenceNumber,
     });
 
+    // Same guarantee as POST /api/ai/deal-status: a Deal can only become Won
+    // once it actually has a meeting, proposal, and quote behind it, whether
+    // "won" was requested explicitly or detected from the customer message.
+    if (turn.deal.status === "won") {
+      const missing: string[] = [];
+      if (!turn.deal.meeting_id) missing.push("meeting");
+      if (!turn.deal.proposal_id) missing.push("proposal");
+      if (!turn.deal.quote_id) missing.push("quote");
+
+      if (missing.length > 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Cannot mark deal as won: missing ${missing.join(", ")} for this lead.`,
+            missing,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     const now = new Date().toISOString();
     const dealInsert = {
       id: turn.deal.id,

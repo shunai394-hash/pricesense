@@ -12,14 +12,14 @@ const MARKETPLACE_META: Record<
   }
 > = {
   "yahoo-shopping-jp": {
-    name: "Yahoo!繧ｷ繝ｧ繝・ヴ繝ｳ繧ｰ",
+    name: "Yahoo!ショッピング",
     regionCode: "japan",
     countryCode: "JP",
     marketplaceType: "shopping",
     baseUrl: "https://shopping.yahoo.co.jp/",
   },
   "rakuten-jp": {
-    name: "讌ｽ螟ｩ蟶ょｴ",
+    name: "楽天市場",
     regionCode: "japan",
     countryCode: "JP",
     marketplaceType: "shopping",
@@ -34,10 +34,18 @@ const MARKETPLACE_META: Record<
   },
 };
 
+export interface PersistedMarketplaceItem {
+  itemId: string;
+  marketplaceId: string;
+  marketplaceName: string;
+  marketplaceSlug: string;
+  observation: MarketplaceObservation;
+}
+
 export async function persistMarketplaceObservations(
   observations: MarketplaceObservation[]
-): Promise<number> {
-  if (observations.length === 0) return 0;
+): Promise<PersistedMarketplaceItem[]> {
+  if (observations.length === 0) return [];
 
   const supabase = getSupabaseAdmin();
   const marketplaceSlug = observations[0].marketplaceSlug;
@@ -76,7 +84,7 @@ export async function persistMarketplaceObservations(
     );
   }
 
-  let saved = 0;
+  const persisted: PersistedMarketplaceItem[] = [];
 
   for (const observation of observations) {
     const itemRow = {
@@ -175,8 +183,14 @@ export async function persistMarketplaceObservations(
       );
     }
 
-    saved += 1;
+    persisted.push({
+      itemId: item.id,
+      marketplaceId: marketplace.id,
+      marketplaceName: meta.name,
+      marketplaceSlug,
+      observation,
+    });
   }
 
-  return saved;
+  return persisted;
 }

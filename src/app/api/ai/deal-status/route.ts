@@ -125,6 +125,54 @@ export async function POST(request: Request) {
     if (dealSelectError) throw new Error(dealSelectError.message);
 
     const existing = parseExistingDeal(dealRow, leadId);
+
+    // Won means the customer has actually agreed to buy, which in this
+    // pipeline only happens after a real meeting produced a proposal and a
+    // quote. Require those upstream records to exist before allowing the
+    // transition, so a Deal can't be marked Won (and the funnel/KPIs
+    // reported as such) with no meeting, proposal, or quote behind it.
+    if (body.status === "won") {
+      const meetingId = existing?.meeting_id ?? null;
+      const proposalId = existing?.proposal_id ?? null;
+      const quoteId = existing?.quote_id ?? null;
+
+      const [meetingCheck, proposalCheck, quoteCheck] = await Promise.all([
+        meetingId
+          ? Promise.resolve({ count: 1 })
+          : supabase
+              .from("sales_meetings")
+              .select("id", { count: "exact", head: true })
+              .eq("lead_id", leadId),
+        proposalId
+          ? Promise.resolve({ count: 1 })
+          : supabase
+              .from("proposal_drafts")
+              .select("id", { count: "exact", head: true })
+              .eq("lead_id", leadId),
+        quoteId
+          ? Promise.resolve({ count: 1 })
+          : supabase
+              .from("quote_drafts")
+              .select("id", { count: "exact", head: true })
+              .eq("lead_id", leadId),
+      ]);
+
+      const missing: string[] = [];
+      if (!(meetingCheck.count && meetingCheck.count > 0)) missing.push("meeting");
+      if (!(proposalCheck.count && proposalCheck.count > 0)) missing.push("proposal");
+      if (!(quoteCheck.count && quoteCheck.count > 0)) missing.push("quote");
+
+      if (missing.length > 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Cannot mark deal as won: missing ${missing.join(", ")} for this lead.`,
+            missing,
+          },
+          { status: 409 }
+        );
+      }
+    }
     const currentAction = classifySalesAction({
       leadId,
       dealId: existing?.id ?? null,
